@@ -2959,3 +2959,6 @@ SELECT '2026-08-28 14:40:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Perso
 JOIN Store s ON s.City = 'Paris'
 JOIN Fragrance f ON f.Fragrance_Name = 'N°5 Eau de Parfum' AND f.Strength = 'Eau de Parfum' AND f.Size = 100
 WHERE p.Email = 'lucia.garcia@example.com';
+
+
+
