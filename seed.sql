@@ -2616,3 +2616,43 @@ INSERT INTO Fragrance_Has_Note (Fragrance_ID, Note_ID, Notes) SELECT f.Fragrance
 INSERT INTO Fragrance_Has_Note (Fragrance_ID, Note_ID, Notes) SELECT f.Fragrance_ID, n.Note_ID, NULL FROM Fragrance f JOIN Brand b ON b.Brand_ID=f.Brand_ID JOIN Fragrance_Note n ON n.Note_Name='Cedar' WHERE b.Name='Creed' AND f.Fragrance_Name='Wild Vetiver' AND f.Strength='Eau de Parfum' AND f.Size=100;
 
 COMMIT;
+
+
+-- Business data (hand-written): stores and customers
+-- Fictional stockist; customer names and emails are made up 
+
+-- New countries needed for stores and customers
+INSERT INTO Country (Name) VALUES ('Portugal'), ('Spain');
+
+-- Stores: one-to-many from Country (a country can have many stores)
+INSERT INTO Store (City, Street, Building, Floor, Notes, Country_ID)
+SELECT 'Paris', '12 Rue du Faubourg Saint-Honore', NULL, 0, 'Flagship store', Country_ID FROM Country WHERE Name = 'France';
+INSERT INTO Store (City, Street, Building, Floor, Notes, Country_ID)
+SELECT 'London', '45 Burlington Arcade', NULL, 0, NULL, Country_ID FROM Country WHERE Name = 'United Kingdom';
+INSERT INTO Store (City, Street, Building, Floor, Notes, Country_ID)
+SELECT 'New York', '350 Madison Avenue', 'Madison Plaza', 2, 'Inside a shopping center', Country_ID FROM Country WHERE Name = 'United States';
+INSERT INTO Store (City, Street, Building, Floor, Notes, Country_ID)
+SELECT 'Prescott', '120 N Cortez St', NULL, 0, NULL, Country_ID FROM Country WHERE Name = 'United States';
+INSERT INTO Store (City, Street, Building, Floor, Notes, Country_ID)
+SELECT 'Lisbon', 'Avenida da Liberdade 180', 'Tivoli Forum', 1, NULL, Country_ID FROM Country WHERE Name = 'Portugal';
+
+-- Customers: first as a Person, then marked as a Customer (subtype)
+INSERT INTO Person (First_Name, Last_Name, Email, Country_ID)
+SELECT 'Emma', 'Laurent', 'emma.laurent@example.com', Country_ID FROM Country WHERE Name = 'France';
+INSERT INTO Person (First_Name, Last_Name, Email, Country_ID)
+SELECT 'Oliver', 'Hughes', 'oliver.hughes@example.com', Country_ID FROM Country WHERE Name = 'United Kingdom';
+INSERT INTO Person (First_Name, Last_Name, Email, Country_ID)
+SELECT 'Sophia', 'Martinez', 'sophia.martinez@example.com', Country_ID FROM Country WHERE Name = 'United States';
+INSERT INTO Person (First_Name, Last_Name, Email, Country_ID)
+SELECT 'Liam', 'Carter', 'liam.carter@example.com', Country_ID FROM Country WHERE Name = 'United States';
+INSERT INTO Person (First_Name, Last_Name, Email, Country_ID)
+SELECT 'Ines', 'Ferreira', 'ines.ferreira@example.com', Country_ID FROM Country WHERE Name = 'Portugal';
+INSERT INTO Person (First_Name, Last_Name, Email, Country_ID)
+SELECT 'Tiago', 'Almeida', 'tiago.almeida@example.com', Country_ID FROM Country WHERE Name = 'Portugal';
+INSERT INTO Person (First_Name, Last_Name, Email, Country_ID)
+SELECT 'Lucia', 'Garcia', 'lucia.garcia@example.com', Country_ID FROM Country WHERE Name = 'Spain';
+INSERT INTO Person (First_Name, Last_Name, Email, Country_ID)
+SELECT 'Noah', 'Bennett', 'noah.bennett@example.com', Country_ID FROM Country WHERE Name = 'United Kingdom';
+
+INSERT INTO Customer (Person_ID)
+SELECT Person_ID FROM Person WHERE Email LIKE '%@example.com';
