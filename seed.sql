@@ -2748,3 +2748,94 @@ WHERE f.Fragrance_Name IN ('Tobacco Vanille', 'Black Orchid');
 INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
 SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Tobacco Absolute'
 WHERE f.Fragrance_Name IN ('Tobacco Vanille');
+
+
+
+-- Store inventory (hand-written): how many bottles each store has of each product
+-- Each row: store (by city), product (by name + strength + size), number of bottles
+
+
+-- Paris
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 18 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Sauvage Eau de Toilette' AND f.Strength = 'Eau de Toilette' AND f.Size = 100 WHERE s.City = 'Paris';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 10 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'N°5 Eau de Parfum' AND f.Strength = 'Eau de Parfum' AND f.Size = 100 WHERE s.City = 'Paris';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 6 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Baccarat Rouge 540' AND f.Strength = 'Eau de Parfum' AND f.Size = 70 WHERE s.City = 'Paris';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 12 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'J''adore Eau de Parfum' AND f.Strength = 'Eau de Parfum' AND f.Size = 100 WHERE s.City = 'Paris';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 0 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Miss Dior Eau de Parfum' AND f.Strength = 'Eau de Parfum' AND f.Size = 100 WHERE s.City = 'Paris';
+
+-- London
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 8 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Aventus' AND f.Strength = 'Eau de Parfum' AND f.Size = 100 WHERE s.City = 'London';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 5 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Green Irish Tweed' AND f.Strength = 'Eau de Parfum' AND f.Size = 100 WHERE s.City = 'London';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 14 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Bleu de Chanel' AND f.Strength = 'Eau de Parfum' AND f.Size = 100 WHERE s.City = 'London';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 20 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Sauvage Eau de Toilette' AND f.Strength = 'Eau de Toilette' AND f.Size = 100 WHERE s.City = 'London';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 4 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Oud Wood' AND f.Strength = 'Eau de Parfum' AND f.Size = 50 WHERE s.City = 'London';
+
+-- New York
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 25 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Sauvage Eau de Parfum' AND f.Strength = 'Eau de Parfum' AND f.Size = 100 WHERE s.City = 'New York';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 18 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Bleu de Chanel' AND f.Strength = 'Eau de Parfum' AND f.Size = 100 WHERE s.City = 'New York';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 9 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Aventus' AND f.Strength = 'Eau de Parfum' AND f.Size = 100 WHERE s.City = 'New York';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 7 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Tobacco Vanille' AND f.Strength = 'Eau de Parfum' AND f.Size = 50 WHERE s.City = 'New York';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 11 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Baccarat Rouge 540' AND f.Strength = 'Eau de Parfum' AND f.Size = 70 WHERE s.City = 'New York';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 6 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Black Orchid' AND f.Strength = 'Eau de Parfum' AND f.Size = 100 WHERE s.City = 'New York';
+
+-- Prescott
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 6 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Sauvage Eau de Toilette' AND f.Strength = 'Eau de Toilette' AND f.Size = 100 WHERE s.City = 'Prescott';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 4 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Bleu de Chanel' AND f.Strength = 'Eau de Parfum' AND f.Size = 50 WHERE s.City = 'Prescott';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 3 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Coco Mademoiselle' AND f.Strength = 'Eau de Parfum' AND f.Size = 100 WHERE s.City = 'Prescott';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 0 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Lost Cherry' AND f.Strength = 'Eau de Parfum' AND f.Size = 50 WHERE s.City = 'Prescott';
+
+-- Lisbon
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 10 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Sauvage Eau de Parfum' AND f.Strength = 'Eau de Parfum' AND f.Size = 60 WHERE s.City = 'Lisbon';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 8 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Coco Mademoiselle' AND f.Strength = 'Eau de Parfum' AND f.Size = 50 WHERE s.City = 'Lisbon';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 5 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Baccarat Rouge 540' AND f.Strength = 'Eau de Parfum' AND f.Size = 35 WHERE s.City = 'Lisbon';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 4 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'Aventus' AND f.Strength = 'Eau de Parfum' AND f.Size = 50 WHERE s.City = 'Lisbon';
+INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
+SELECT s.Store_ID, f.Fragrance_ID, 6 FROM Store s JOIN Fragrance f
+ON f.Fragrance_Name = 'N°5 Eau de Parfum' AND f.Strength = 'Eau de Parfum' AND f.Size = 50 WHERE s.City = 'Lisbon';
