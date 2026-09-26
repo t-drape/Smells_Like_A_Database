@@ -2839,3 +2839,123 @@ ON f.Fragrance_Name = 'Aventus' AND f.Strength = 'Eau de Parfum' AND f.Size = 50
 INSERT INTO Store_Inventory (Store_ID, Fragrance_ID, Num_Bottles)
 SELECT s.Store_ID, f.Fragrance_ID, 6 FROM Store s JOIN Fragrance f
 ON f.Fragrance_Name = 'N°5 Eau de Parfum' AND f.Strength = 'Eau de Parfum' AND f.Size = 50 WHERE s.City = 'Lisbon';
+
+
+
+-- Purchases (hand-written): which customer bought which product, where and when
+-- Customer looked up by email, store by city, product by name + strength + size
+-- Noah Bennett has no purchases on purpose (a customer does not have to have bought anything yet)
+
+-- Emma Laurent
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-06-05 11:20:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'Paris'
+JOIN Fragrance f ON f.Fragrance_Name = 'Sauvage Eau de Toilette' AND f.Strength = 'Eau de Toilette' AND f.Size = 100
+WHERE p.Email = 'emma.laurent@example.com';
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-07-14 16:05:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'Paris'
+JOIN Fragrance f ON f.Fragrance_Name = 'Miss Dior Eau de Parfum' AND f.Strength = 'Eau de Parfum' AND f.Size = 100
+WHERE p.Email = 'emma.laurent@example.com';
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-09-02 12:40:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'Paris'
+JOIN Fragrance f ON f.Fragrance_Name = 'Baccarat Rouge 540' AND f.Strength = 'Eau de Parfum' AND f.Size = 70
+WHERE p.Email = 'emma.laurent@example.com';
+
+-- Oliver Hughes
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-06-18 13:10:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'London'
+JOIN Fragrance f ON f.Fragrance_Name = 'Aventus' AND f.Strength = 'Eau de Parfum' AND f.Size = 100
+WHERE p.Email = 'oliver.hughes@example.com';
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-08-22 17:45:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'London'
+JOIN Fragrance f ON f.Fragrance_Name = 'Aventus' AND f.Strength = 'Eau de Parfum' AND f.Size = 100
+WHERE p.Email = 'oliver.hughes@example.com';
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-09-10 10:30:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'London'
+JOIN Fragrance f ON f.Fragrance_Name = 'Oud Wood' AND f.Strength = 'Eau de Parfum' AND f.Size = 50
+WHERE p.Email = 'oliver.hughes@example.com';
+
+-- Sophia Martinez
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-06-27 15:00:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'New York'
+JOIN Fragrance f ON f.Fragrance_Name = 'Baccarat Rouge 540' AND f.Strength = 'Eau de Parfum' AND f.Size = 70
+WHERE p.Email = 'sophia.martinez@example.com';
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-07-20 11:55:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'Paris'
+JOIN Fragrance f ON f.Fragrance_Name = 'J''adore Eau de Parfum' AND f.Strength = 'Eau de Parfum' AND f.Size = 100
+WHERE p.Email = 'sophia.martinez@example.com';
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-08-03 18:20:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'New York'
+JOIN Fragrance f ON f.Fragrance_Name = 'Black Orchid' AND f.Strength = 'Eau de Parfum' AND f.Size = 100
+WHERE p.Email = 'sophia.martinez@example.com';
+
+-- Liam Carter
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-07-01 14:15:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'Prescott'
+JOIN Fragrance f ON f.Fragrance_Name = 'Sauvage Eau de Toilette' AND f.Strength = 'Eau de Toilette' AND f.Size = 100
+WHERE p.Email = 'liam.carter@example.com';
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-08-15 12:00:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'Prescott'
+JOIN Fragrance f ON f.Fragrance_Name = 'Lost Cherry' AND f.Strength = 'Eau de Parfum' AND f.Size = 50
+WHERE p.Email = 'liam.carter@example.com';
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-09-05 16:30:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'New York'
+JOIN Fragrance f ON f.Fragrance_Name = 'Bleu de Chanel' AND f.Strength = 'Eau de Parfum' AND f.Size = 100
+WHERE p.Email = 'liam.carter@example.com';
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-09-20 10:45:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'Prescott'
+JOIN Fragrance f ON f.Fragrance_Name = 'Coco Mademoiselle' AND f.Strength = 'Eau de Parfum' AND f.Size = 100
+WHERE p.Email = 'liam.carter@example.com';
+
+-- Ines Ferreira
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-06-12 17:30:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'Lisbon'
+JOIN Fragrance f ON f.Fragrance_Name = 'Coco Mademoiselle' AND f.Strength = 'Eau de Parfum' AND f.Size = 50
+WHERE p.Email = 'ines.ferreira@example.com';
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-09-12 13:25:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'Lisbon'
+JOIN Fragrance f ON f.Fragrance_Name = 'Baccarat Rouge 540' AND f.Strength = 'Eau de Parfum' AND f.Size = 35
+WHERE p.Email = 'ines.ferreira@example.com';
+
+-- Tiago Almeida
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-07-08 19:10:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'Lisbon'
+JOIN Fragrance f ON f.Fragrance_Name = 'Sauvage Eau de Parfum' AND f.Strength = 'Eau de Parfum' AND f.Size = 60
+WHERE p.Email = 'tiago.almeida@example.com';
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-08-09 12:35:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'London'
+JOIN Fragrance f ON f.Fragrance_Name = 'Bleu de Chanel' AND f.Strength = 'Eau de Parfum' AND f.Size = 100
+WHERE p.Email = 'tiago.almeida@example.com';
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-09-18 15:50:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'Lisbon'
+JOIN Fragrance f ON f.Fragrance_Name = 'Aventus' AND f.Strength = 'Eau de Parfum' AND f.Size = 50
+WHERE p.Email = 'tiago.almeida@example.com';
+
+-- Lucia Garcia
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-07-25 11:05:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'Lisbon'
+JOIN Fragrance f ON f.Fragrance_Name = 'N°5 Eau de Parfum' AND f.Strength = 'Eau de Parfum' AND f.Size = 50
+WHERE p.Email = 'lucia.garcia@example.com';
+INSERT INTO Purchase_Record (Purchase_Date, Customer_ID, Fragrance_ID, Store_ID)
+SELECT '2026-08-28 14:40:00', p.Person_ID, f.Fragrance_ID, s.Store_ID FROM Person p
+JOIN Store s ON s.City = 'Paris'
+JOIN Fragrance f ON f.Fragrance_Name = 'N°5 Eau de Parfum' AND f.Strength = 'Eau de Parfum' AND f.Size = 100
+WHERE p.Email = 'lucia.garcia@example.com';
