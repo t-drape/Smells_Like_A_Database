@@ -2656,3 +2656,95 @@ SELECT 'Noah', 'Bennett', 'noah.bennett@example.com', Country_ID FROM Country WH
 
 INSERT INTO Customer (Person_ID)
 SELECT Person_ID FROM Person WHERE Email LIKE '%@example.com';
+
+
+-- Ingredients (hand-written)
+-- Brands do not publish full formulas; these are well-known, publicly reported key materials
+INSERT INTO Fragrance_Ingredient (Ingredient_Name, Is_Natural, Notes) VALUES
+('Ambroxan',               FALSE, 'Ambergris-like woody amber molecule'),
+('Hedione',                FALSE, 'Transparent jasmine-like molecule'),
+('Iso E Super',            FALSE, 'Smooth cedar-like woody molecule'),
+('Aldehydes',              FALSE, 'Sparkling, soapy top-note molecules'),
+('Ethyl Maltol',           FALSE, 'Caramelized sugar, cotton-candy sweetness'),
+('Safraleine',             FALSE, 'Saffron-like leathery molecule'),
+('Calabrian Bergamot Oil', TRUE,  'Citrus peel oil from Calabria, Italy'),
+('Jasmine Absolute',       TRUE,  'Extracted from jasmine flowers'),
+('Rose Absolute',          TRUE,  'Extracted from rose petals'),
+('Ylang-Ylang Oil',        TRUE,  'Distilled from ylang-ylang flowers'),
+('Patchouli Oil',          TRUE,  'Distilled from patchouli leaves'),
+('Vetiver Oil',            TRUE,  'Distilled from vetiver roots'),
+('Birch Tar',              TRUE,  'Smoky, leathery tar from birch bark'),
+('Cedarwood Oil',          TRUE,  'Distilled from cedar wood'),
+('Lavender Oil',           TRUE,  'Distilled from lavender flowers'),
+('Vanilla Absolute',       TRUE,  'Extracted from cured vanilla pods'),
+('Tobacco Absolute',       TRUE,  'Extracted from cured tobacco leaves');
+
+-- Fragrance_Has_Ingredient (many-to-many)
+-- Each statement links one ingredient to every size/strength of the listed scents
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Ambroxan'
+WHERE f.Fragrance_Name IN ('Sauvage Eau de Toilette', 'Sauvage Eau de Parfum', 'Baccarat Rouge 540');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Hedione'
+WHERE f.Fragrance_Name IN ('Eau Sauvage', 'Baccarat Rouge 540');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Iso E Super'
+WHERE f.Fragrance_Name IN ('Bleu de Chanel');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Aldehydes'
+WHERE f.Fragrance_Name IN ('N°5 Eau de Parfum');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Ethyl Maltol'
+WHERE f.Fragrance_Name IN ('Baccarat Rouge 540');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Safraleine'
+WHERE f.Fragrance_Name IN ('Baccarat Rouge 540');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Calabrian Bergamot Oil'
+WHERE f.Fragrance_Name IN ('Sauvage Eau de Toilette', 'Sauvage Eau de Parfum');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Jasmine Absolute'
+WHERE f.Fragrance_Name IN ('N°5 Eau de Parfum', 'J''adore Eau de Parfum');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Rose Absolute'
+WHERE f.Fragrance_Name IN ('N°5 Eau de Parfum', 'À la rose');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Ylang-Ylang Oil'
+WHERE f.Fragrance_Name IN ('N°5 Eau de Parfum');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Patchouli Oil'
+WHERE f.Fragrance_Name IN ('Coco Mademoiselle', 'Black Orchid');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Vetiver Oil'
+WHERE f.Fragrance_Name IN ('Original Vetiver', 'Wild Vetiver');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Birch Tar'
+WHERE f.Fragrance_Name IN ('Aventus');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Cedarwood Oil'
+WHERE f.Fragrance_Name IN ('Bleu de Chanel', 'Baccarat Rouge 540');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Lavender Oil'
+WHERE f.Fragrance_Name IN ('Sauvage Eau de Parfum');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Vanilla Absolute'
+WHERE f.Fragrance_Name IN ('Tobacco Vanille', 'Black Orchid');
+
+INSERT INTO Fragrance_Has_Ingredient (Fragrance_ID, Ingredient_ID)
+SELECT f.Fragrance_ID, i.Ingredient_ID FROM Fragrance f JOIN Fragrance_Ingredient i ON i.Ingredient_Name = 'Tobacco Absolute'
+WHERE f.Fragrance_Name IN ('Tobacco Vanille');
