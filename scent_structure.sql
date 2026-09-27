@@ -1,3 +1,5 @@
+DROP DATABASE IF EXISTS scent_db;
+CREATE DATABASE scent_db;
 USE scent_db;
 
 CREATE TABLE Country (
@@ -47,6 +49,16 @@ Country_ID Integer,
 Foreign key (Country_ID) REFERENCES Country(Country_ID)
 );
 
+CREATE TABLE Perfumer (
+Person_ID Integer PRIMARY KEY,
+Foreign Key (Person_ID) REFERENCES Person(Person_ID)
+);
+
+CREATE TABLE Customer (
+Person_ID Integer Primary Key,
+Foreign Key (Person_ID) REFERENCES Person(Person_ID)
+);
+
 CREATE TABLE Fragrance (
 Fragrance_ID INTEGER AUTO_INCREMENT PRIMARY KEY,
 Fragrance_Name Varchar(45),
@@ -57,18 +69,8 @@ Price Decimal(10,2),
 Perfumer_ID INTEGER,
 Brand_ID Integer,
 
-Foreign Key (Perfumer_ID) REFERENCES Person(Person_ID),
+Foreign Key (Perfumer_ID) REFERENCES Perfumer(Person_ID),
 Foreign Key (Brand_ID) REFERENCES Brand(Brand_ID)
-);
-
-CREATE TABLE Perfumer (
-Person_ID Integer PRIMARY KEY,
-Foreign Key (Person_ID) REFERENCES Person(Person_ID)
-);
-
-CREATE TABLE Customer (
-Person_ID Integer Primary Key,
-Foreign Key (Person_ID) REFERENCES Person(Person_ID)
 );
 
 CREATE TABLE Fragrance_Has_Ingredient (
