@@ -1,0 +1,40 @@
+-- Application User Needs --
+        What to Submit
+        1. Five application or user needs: Write each need as a plain-English request. Do not begin with SQL.
+        2. The data needed: Identify the columns the result should display and the table(s) that contain them.
+        3. The SQL query: Write and test a query that answers the need using your own project database.
+        4. A short explanation: Explain why this query would be useful in the future application.
+        5. One researched query: At least one of your five queries must require an SQL feature or pattern that we
+        have not yet used in class. Research how to accomplish the need, test it, and document what you learned.
+
+
+1.1) I am a perfume wearer who likes the scent of vanilla. What fragrances have vanilla scent from lowest cost to highest?
+1.2) Result should display: Fragrance_Name, Size, Price
+     Tables needed: Fragrance_Note, Fragrance_Has_Note, Fragrance
+1.3) Query:
+  SELECT Fragrance.Fragrance_Name, Fragrance.Size, Fragrance.Price
+  FROM Fragrance_Note
+    JOIN Fragrance_Has_Note 
+      ON Fragrance_Note.Note_ID = Fragrance_Has_Note.Note_ID
+    JOIN Fragrance 
+      ON Fragrance_Has_Note.Fragrance_ID = Fragrance.Fragrance_ID
+  WHERE Fragrance_Note.Note_Name = 'Vanilla'
+  ORDER BY Fragrance.Price ASC;
+1.4) The user can select a note they like and find all perfumes that have it.
+
+
+
+2.1) Who has Baccarat Rouge 540 in stock?
+2.2) Result should display: City, Building, Street, Num_Bottles
+     Tables needed: Fragrance, Store_Inventory, Store
+2.3) Query:
+  SELECT Store.City, Store.Building, Store.Street, Store_Inventory.Num_Bottles
+  FROM Fragrance
+    JOIN Store_Inventory 
+      ON Fragrance.Fragrance_ID = Store_Inventory.Fragrance_ID
+    JOIN Store 
+      ON Store_Inventory.Store_ID = Store.Store_ID
+  WHERE Fragrance.Fragrance_Name = 'Baccarat Rouge 540'
+  AND Store_Inventory.Num_Bottles > 0
+  ORDER BY Store_Inventory.Num_Bottles DESC;
+2.4) With this a user can find where their favorite perfume is available to buy in person
