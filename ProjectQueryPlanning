@@ -52,4 +52,7 @@
   FROM Fragrance
   ORDER BY Fragrance.Price ASC;
 3.4) This helps shoppers easily find perfumes that fit their budget, and the app could let them filter by price range.
-3.5) My new SQL Pattern was CASE. CASE works like an if/else statement inside a query. It checks each row and returns a label based on the conditions you set.
+3.5) My new SQL Pattern was CASE. CASE works like an if/else statement inside a query. It checks each row and returns a label based on the conditions you set. 
+In this example query we have it label each fragrance as Budget, Premium or Luxury based on the fragrance price. Less than $200 is labeled budget. Less than 400 is 
+labeled Preemium, and anything $400 or higher is labeled luxury. We learned that the conditions are checked in order and the case stops at the first
+conditoin thats true. This means Price < 400 wont relable the < 200 budget fragrances.
