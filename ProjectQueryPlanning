@@ -56,3 +56,43 @@
 In this example query we have it label each fragrance as Budget, Premium or Luxury based on the fragrance price. Less than $200 is labeled budget. Less than 400 is 
 labeled Preemium, and anything $400 or higher is labeled luxury. We learned that the conditions are checked in order and the case stops at the first
 conditoin thats true. This means Price < 400 wont relable the < 200 budget fragrances.
+
+4.1) Which five fragrances have customers purchased the most?
+
+4.2) Result should display: Fragrance_Name, Total_Purchases 
+Tables needed: Purchase_Record, Fragrance
+
+4.3) Query:
+SELECT Fragrance.Fragrance_Name,
+       COUNT(*) AS Total_Purchases
+FROM Purchase_Record
+    JOIN Fragrance
+      ON Purchase_Record.Fragrance_ID = Fragrance.Fragrance_ID
+GROUP BY Fragrance.Fragrance_ID, Fragrance.Fragrance_Name
+ORDER BY Total_Purchases DESC
+LIMIT 5;
+
+4.4) This helps the store see which fragrances customers buy the most. 
+The application could use this information to show best-selling perfumes and help the business decide which ones to restock.
+
+5.1) Which fragrances are running low on stock, and at which stores?
+
+5.2) Result should display: Fragrance_Name, City, Num_Bottles
+Tables needed: Fragrance, Store_Inventory, Store
+These tables are related through Fragrance_ID and Store_ID.
+
+5.3) Query:
+
+SELECT Fragrance.Fragrance_Name,
+       Store.City,
+       Store_Inventory.Num_Bottles
+FROM Store_Inventory
+    JOIN Fragrance
+      ON Store_Inventory.Fragrance_ID = Fragrance.Fragrance_ID
+    JOIN Store
+      ON Store_Inventory.Store_ID = Store.Store_ID
+WHERE Store_Inventory.Num_Bottles <= 5
+ORDER BY Store_Inventory.Num_Bottles ASC;
+
+5.4) This helps store employees identify fragrances that are almost out of stock or already sold out. 
+The application could use this information to help stores restock products before customers try to buy something that is unavailable.
