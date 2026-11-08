@@ -1,0 +1,98 @@
+-- Application User Needs --
+        What to Submit
+        1. Five application or user needs: Write each need as a plain-English request. Do not begin with SQL.
+        2. The data needed: Identify the columns the result should display and the table(s) that contain them.
+        3. The SQL query: Write and test a query that answers the need using your own project database.
+        4. A short explanation: Explain why this query would be useful in the future application.
+        5. One researched query: At least one of your five queries must require an SQL feature or pattern that we
+        have not yet used in class. Research how to accomplish the need, test it, and document what you learned.
+
+
+1.1) I am a perfume wearer who likes the scent of vanilla (or any other scent a user wants). What fragrances have vanilla scent from lowest cost to highest?
+1.2) Result should display: Fragrance_Name, Size, Price
+     Tables needed: Fragrance_Note, Fragrance_Has_Note, Fragrance
+1.3) Query:
+  SELECT Fragrance.Fragrance_Name, Fragrance.Size, Fragrance.Price
+  FROM Fragrance_Note
+    JOIN Fragrance_Has_Note 
+      ON Fragrance_Note.Note_ID = Fragrance_Has_Note.Note_ID
+    JOIN Fragrance 
+      ON Fragrance_Has_Note.Fragrance_ID = Fragrance.Fragrance_ID
+  WHERE Fragrance_Note.Note_Name = 'Vanilla'
+  ORDER BY Fragrance.Price ASC;
+1.4) The user can select a note they like and find all perfumes that have it.
+
+
+
+2.1) Who has Baccarat Rouge 540 (or any other scent a user wants) in stock?
+2.2) Result should display: City, Building, Street, Num_Bottles
+     Tables needed: Fragrance, Store_Inventory, Store
+2.3) Query:
+  SELECT Store.City, Store.Building, Store.Street, Store_Inventory.Num_Bottles
+  FROM Fragrance
+    JOIN Store_Inventory 
+      ON Fragrance.Fragrance_ID = Store_Inventory.Fragrance_ID
+    JOIN Store 
+      ON Store_Inventory.Store_ID = Store.Store_ID
+  WHERE Fragrance.Fragrance_Name = 'Baccarat Rouge 540'
+  AND Store_Inventory.Num_Bottles > 0
+  ORDER BY Store_Inventory.Num_Bottles DESC;
+2.4) With this a user can find where their favorite perfume is available to buy in person
+
+3.1) I want to see all fragrances in my budget grouped by price range.
+3.2) Result should display: Fragrance_Name, Price, Price_Range
+     Tables needed: Fragrance
+3.3) Query:
+  SELECT Fragrance.Fragrance_Name, Fragrance.Price,
+    CASE
+      WHEN Fragrance.Price < 200 THEN 'Budget'
+      WHEN Fragrance.Price < 400 THEN 'Premium'
+      ELSE 'Luxury'
+    END AS Price_Range
+  FROM Fragrance
+  ORDER BY Fragrance.Price ASC;
+3.4) This helps shoppers easily find perfumes that fit their budget, and the app could let them filter by price range.
+3.5) My new SQL Pattern was CASE. CASE works like an if/else statement inside a query. It checks each row and returns a label based on the conditions you set. 
+In this example query we have it label each fragrance as Budget, Premium or Luxury based on the fragrance price. Less than $200 is labeled budget. Less than 400 is 
+labeled Preemium, and anything $400 or higher is labeled luxury. We learned that the conditions are checked in order and the case stops at the first
+conditoin thats true. This means Price < 400 wont relable the < 200 budget fragrances.
+
+4.1) Which five fragrances have customers purchased the most?
+
+4.2) Result should display: Fragrance_Name, Total_Purchases 
+Tables needed: Purchase_Record, Fragrance
+
+4.3) Query:
+SELECT Fragrance.Fragrance_Name,
+       COUNT(*) AS Total_Purchases
+FROM Purchase_Record
+    JOIN Fragrance
+      ON Purchase_Record.Fragrance_ID = Fragrance.Fragrance_ID
+GROUP BY Fragrance.Fragrance_ID, Fragrance.Fragrance_Name
+ORDER BY Total_Purchases DESC
+LIMIT 5;
+
+4.4) This helps the store see which fragrances customers buy the most. 
+The application could use this information to show best-selling perfumes and help the business decide which ones to restock.
+
+5.1) Which fragrances are running low on stock, and at which stores?
+
+5.2) Result should display: Fragrance_Name, City, Num_Bottles
+Tables needed: Fragrance, Store_Inventory, Store
+These tables are related through Fragrance_ID and Store_ID.
+
+5.3) Query:
+
+SELECT Fragrance.Fragrance_Name,
+       Store.City,
+       Store_Inventory.Num_Bottles
+FROM Store_Inventory
+    JOIN Fragrance
+      ON Store_Inventory.Fragrance_ID = Fragrance.Fragrance_ID
+    JOIN Store
+      ON Store_Inventory.Store_ID = Store.Store_ID
+WHERE Store_Inventory.Num_Bottles <= 5
+ORDER BY Store_Inventory.Num_Bottles ASC;
+
+5.4) This helps store employees identify fragrances that are almost out of stock or already sold out. 
+The application could use this information to help stores restock products before customers try to buy something that is unavailable.
