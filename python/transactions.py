@@ -5,6 +5,8 @@ def record_purchase(connection, customer_id, fragrance_id, store_id):
     cursor = connection.cursor()
 
     try:
+        if connection.in_transaction:
+            connection.rollback()
         connection.start_transaction()
 
         # Reduce inventory by one bottle
