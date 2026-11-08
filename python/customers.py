@@ -4,6 +4,8 @@ def register_customer(connection, first_name, last_name, email, country_id):
     cursor = connection.cursor()
 
     try:
+        if connection.in_transaction:     
+            connection.rollback()         
         connection.start_transaction()
 
         # Create the person
