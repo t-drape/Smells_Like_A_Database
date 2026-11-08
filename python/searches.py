@@ -37,7 +37,7 @@ GROUP BY Fragrance.Fragrance_Name, Brand.Name;
     cursor.close()
     return fragrances
 
-def get_fragrances_with_note():
+def get_fragrances_with_note(user_input=get_note()):
     cursor = mysql_conn.cursor(dictionary=True)
     sql = """SELECT DISTINCT Fragrance.Fragrance_Name FROM Fragrance_Note
 INNER JOIN Fragrance_Has_Note ON Fragrance_Note.Note_ID = Fragrance_Has_Note.Note_ID
@@ -69,7 +69,7 @@ def print_natural_fragrances(name_dictionary):
 
 
 
-# print_fragrance_names(get_fragrances_with_note())
+print_fragrance_names(get_fragrances_with_note())
 print_natural_fragrances(get_fragrances_with_natural_status())
 
 
