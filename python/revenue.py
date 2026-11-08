@@ -1,12 +1,5 @@
 import mysql.connector
 
-# CS317 - Sunrise Lab (Week 10)
-# One application, two databases.
-#   MySQL:   student name, email, certifications
-#   MongoDB: student profile (preferences, interests, notes, availability)
-
-import mysql.connector
-
 
 # Change these to your own MySQL login
 MYSQL_USER = "admin"
@@ -30,7 +23,7 @@ def get_gross_revenue():
     return revenue
 
 def get_store():
-    return str(input("City: "))
+    return input("City: ")
 
 def get_specific_revenue(user_input=get_store()):
     cursor = mysql_conn.cursor(dictionary=True)
@@ -40,7 +33,7 @@ def get_specific_revenue(user_input=get_store()):
         WHERE Purchase_Record.Store_ID = (
         SELECT Store_ID From Store WHERE 
         Store.City = %s
-        );;"""
+        );"""
     cursor.execute(sql, (user_input,))
     revenue = cursor.fetchone()
     cursor.close()
