@@ -48,10 +48,11 @@ def insert_brand(country=get_country(), name=get_brand_name()):
     cursor = mysql_conn.cursor(dictionary=True)
     sql = """
 INSERT INTO BRAND (Name, Country_ID) Values (%s, %s);"""
-    cursor.execute(sql, (country, name,))
+    cursor.execute(sql, (name, country))
     mysql_conn.commit()
+    brand_id = cursor.lastrowid
     cursor.close()
-    return
+    return brand_id
 
 def get_brand_id(brand):
     cursor = mysql_conn.cursor(dictionary=True)

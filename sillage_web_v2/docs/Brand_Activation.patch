@@ -1,0 +1,200 @@
+--- before/student_code/brands.py
++++ after/student_code/brands.py
+@@ -1,20 +1,18 @@
+-"""Web interface for the team-owned brand insertion implementation.
++"""User-supplied brand INSERT adapted to explicit web inputs and a connection.
+ 
+-The supplied terminal script needs corrections before it can save a brand.
+-Read docs/CATALOG_SCRIPT_REVIEW.md. No INSERT, SQL binding, or transaction
+-implementation has been supplied by AI in this module.
++The SQL, parameter tuple, commit, lastrowid, close, and return are preserved.
++The website passes an existing Country_ID directly from its country dropdown.
+ """
+ 
+-ADD_BRAND_READY = False
++ADD_BRAND_READY = True
+ 
+ 
+-def add_brand(connection, name, country_id):
+-    """Return the saved positive integer Brand_ID using the supplied connection.
+-
+-    name is a nonempty string of at most 60 characters.
+-    country_id is a positive integer selected from the existing countries.
+-    The team must implement SQL, parameter binding, saving, and cleanup here,
+-    and propagate original MySQL exceptions. Do not prompt, connect, or change
+-    database accounts inside this function. Enable the flag after testing.
+-    """
+-    raise NotImplementedError('The team has not completed brand insertion yet.')
++def insert_brand(connection, country_id, name):
++    cursor = connection.cursor(dictionary=True)
++    sql = """
++INSERT INTO BRAND (Name, Country_ID) Values (%s, %s);"""
++    cursor.execute(sql, (name, country_id))
++    connection.commit()
++    brand_id = cursor.lastrowid
++    cursor.close()
++    return brand_id
+
+--- before/service.py
++++ after/service.py
+@@ -124,7 +124,7 @@
+             raise NotImplementedError('Brand database account has not been configured.')
+         connection = self._connect(self.admin_config)
+         try:
+-            brand_id = module.add_brand(connection, **values)
++            brand_id = module.insert_brand(connection, **values)
+             if isinstance(brand_id, bool) or not isinstance(brand_id, int) or brand_id <= 0:
+                 raise RuntimeError('The student function must return the saved Brand_ID.')
+             return brand_id
+
+--- before/app.py
++++ after/app.py
+@@ -167,6 +167,12 @@
+                 elif adding_brand and errno in (1048, 1264, 1366, 1406, 3819):
+                     message = 'One or more brand values do not meet the database requirements.'
+                     status = 422
++                elif adding_brand and errno == 1146:
++                    message = 'The brand table could not be found. Ask the team to check its database name and capitalization.'
++                    status = 503
++                elif adding_brand and errno in (2006, 2013):
++                    message = 'The database connection was lost. Check whether the brand was saved before trying again.'
++                    status = 503
+                 elif restocking and errno in (1264, 1690, 3819):
+                     message = 'The resulting bottle count exceeds the inventory limits. Check the current stock and quantity.'
+                     status = 422
+
+--- before/tests/test_service.py
++++ after/tests/test_service.py
+@@ -110,7 +110,7 @@
+ 
+     def test_brand_uses_admin_connection_and_student_save_contract(self):
+         function=Mock(return_value=6)
+-        module=SimpleNamespace(ADD_BRAND_READY=True,add_brand=function)
++        module=SimpleNamespace(ADD_BRAND_READY=True,insert_brand=function)
+         with patch('service.importlib.import_module',return_value=module):
+             self.assertEqual(self.service.add_brand({'name':'House','country_id':3}),6)
+         self.service._connect.assert_called_once_with(self.admin)
+@@ -132,7 +132,7 @@
+     def test_brand_error_and_invalid_return_close_connection(self):
+         error=Exception('refused');error.errno=1142
+         function=Mock(side_effect=error)
+-        module=SimpleNamespace(ADD_BRAND_READY=True,add_brand=function)
++        module=SimpleNamespace(ADD_BRAND_READY=True,insert_brand=function)
+         with patch('service.importlib.import_module',return_value=module):
+             with self.assertRaises(Exception) as caught:
+                 self.service.add_brand({})
+
+--- before/tests/test_brand_insert.py
++++ after/tests/test_brand_insert.py
+@@ -0,0 +1,111 @@
++"""Real brand route/service/student-function checks using database doubles."""
++import ast
++from decimal import Decimal
++from pathlib import Path
++import unittest
++from unittest.mock import Mock
++
++import test_fragrance_insert as fragrance_helpers
++
++
++class BrandFlowTests(unittest.TestCase):
++    setUp = fragrance_helpers.FragranceFlowTests.setUp
++    tearDown = fragrance_helpers.FragranceFlowTests.tearDown
++    call = fragrance_helpers.FragranceFlowTests.call
++    login = fragrance_helpers.FragranceFlowTests.login
++    fragrance_form = fragrance_helpers.FragranceFlowTests.fragrance_form
++
++    def test_admin_brand_insert_saves_country_id_and_returns_id(self):
++        self.login()
++        self.cursor.lastrowid = 6
++        code,data = self.call('/api/brands', {'name':"L'Example",'country_id':'3'})
++        self.assertEqual((code,data['brand_id']),(201,6))
++        self.service._connect.assert_called_once_with(self.admin)
++        self.connection.cursor.assert_called_once_with(dictionary=True)
++        self.assertEqual(self.cursor.execute.call_args.args[1],("L'Example",3))
++        self.connection.commit.assert_called_once()
++        self.cursor.close.assert_called_once()
++        self.connection.close.assert_called_once()
++
++    def test_customer_cannot_select_admin_or_insert_brand(self):
++        code,_ = self.call('/api/brands',{'name':'New','country_id':3,'role':'admin','is_staff':True})
++        self.assertEqual(code,403)
++        self.service._connect.assert_not_called()
++
++    def test_brand_database_errors_propagate_without_commit_or_retry(self):
++        self.login()
++        for errno,status,phrase in [(1062,409,'already exists'),(1452,422,'country'),
++                                   (1142,403,'MySQL refused'),(1146,503,'capitalization')]:
++            with self.subTest(errno=errno):
++                self.service._connect.reset_mock()
++                self.connection.reset_mock()
++                self.cursor.execute.side_effect=fragrance_helpers.DatabaseFailure(errno)
++                code,data=self.call('/api/brands',{'name':'New','country_id':3})
++                self.assertEqual(code,status)
++                self.assertIn(phrase,data['error'])
++                self.assertNotIn('PRIVATE',data['error'])
++                self.assertNotIn('brand_id',data)
++                self.connection.commit.assert_not_called()
++                self.service._connect.assert_called_once_with(self.admin)
++                self.connection.close.assert_called_once()
++
++    def test_brand_failed_commit_never_reports_success_or_retries(self):
++        self.login()
++        self.connection.commit.side_effect=fragrance_helpers.DatabaseFailure(2013)
++        code,data=self.call('/api/brands',{'name':'New','country_id':3})
++        self.assertEqual(code,503)
++        self.assertNotIn('brand_id',data)
++        self.assertIn('Check whether the brand was saved',data['error'])
++        self.cursor.execute.assert_called_once()
++        self.connection.commit.assert_called_once()
++        self.service._connect.assert_called_once_with(self.admin)
++        self.connection.close.assert_called_once()
++
++    def test_brand_then_fragrance_uses_returned_brand_id(self):
++        self.login()
++        brand_connection,fragrance_connection=Mock(),Mock()
++        brand_connection.cursor.return_value.lastrowid=6
++        fragrance_connection.cursor.return_value.lastrowid=209
++        self.service._connect.side_effect=[brand_connection,fragrance_connection]
++        code,brand=self.call('/api/brands',{'name':'New house','country_id':3})
++        self.assertEqual(code,201)
++        code,fragrance=self.call('/api/fragrances',self.fragrance_form(brand_id=brand['brand_id']))
++        self.assertEqual((code,fragrance['fragrance_id']),(201,209))
++        self.assertEqual(fragrance_connection.cursor.return_value.execute.call_args.args[1],
++                         ('Team Example','Eau de Parfum',50,Decimal('125.50'),6))
++        for connection in (brand_connection,fragrance_connection):
++            connection.commit.assert_called_once()
++            connection.close.assert_called_once()
++        self.assertTrue(all(call.args==(self.admin,) for call in self.service._connect.call_args_list))
++
++    def test_brand_missing_profiles_remains_unavailable_without_fallback(self):
++        self.login()
++        self.service.admin_config=None
++        code,data=self.call('/api/brands',{'name':'New','country_id':3})
++        self.assertEqual(code,501)
++        self.assertNotIn('brand_id',data)
++        self.service._connect.assert_not_called()
++
++
++class BrandSourceTests(unittest.TestCase):
++    def test_supplied_brand_body_only_renames_connection(self):
++        root=Path(__file__).resolve().parents[1]
++        source=ast.parse((root/'docs/supplied_catalog_script.txt').read_text())
++        adapted=ast.parse((root/'student_code/brands.py').read_text())
++        original=next(n for n in source.body if isinstance(n,ast.FunctionDef) and n.name=='insert_brand')
++        actual=next(n for n in adapted.body if isinstance(n,ast.FunctionDef) and n.name=='insert_brand')
++
++        class ConnectionName(ast.NodeTransformer):
++            def visit_Name(self,node):
++                if node.id=='mysql_conn':node.id='connection'
++                return node
++
++        original=ConnectionName().visit(original)
++        self.assertEqual(ast.dump(ast.Module(body=actual.body,type_ignores=[]),include_attributes=False),
++                         ast.dump(ast.Module(body=original.body,type_ignores=[]),include_attributes=False))
++        self.assertEqual(actual.args.defaults,[])
++        self.assertEqual([a.arg for a in actual.args.args],['connection','country_id','name'])
++
++
++if __name__ == '__main__':
++    unittest.main()

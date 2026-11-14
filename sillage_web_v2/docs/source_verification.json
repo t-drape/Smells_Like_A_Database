@@ -1,0 +1,98 @@
+{
+  "searches": {
+    "sql_literals_unchanged": 2,
+    "execute_calls_unchanged": 2,
+    "original_sha256": "2e7eb75058b24750d23621d2079407cf647ac01625e4035622c51e4f4f967928",
+    "adapted_sha256": "e9f669b2ffdd9c70de75fd60745a82204370c03d04ce95d1c922d5f83cbeeaf6"
+  },
+  "revenue": {
+    "sql_literals_unchanged": 2,
+    "execute_calls_unchanged": 2,
+    "original_sha256": "5a9fb57b81709215c5c07322f0f7b06a62bcb9b37e6a64d0ed20153a1935fe03",
+    "adapted_sha256": "cb9043efb5fd4886a2755b37d84dda8d125cc38eb5501d13a78ca3e29ce677b6"
+  },
+  "discount": {
+    "sql_literals_unchanged": 1,
+    "execute_calls_unchanged": 1,
+    "original_sha256": "00551c1db945e569c40a6b4e80cbf4a25640c97a5e6d625a9ca1fa2dd081e735",
+    "adapted_sha256": "37ba39e29bd6ac09b68851ca3fd02c3715f1fe53436cb9263fede5a9ba771bbc"
+  },
+  "customers": {
+    "sql_literals_unchanged": 2,
+    "execute_calls_unchanged": 2,
+    "original_sha256": "2738bcf50d498516f22cb3db0c4f7d425f5c256d01d6f88f5dfb65385287a2d8",
+    "adapted_sha256": "2738bcf50d498516f22cb3db0c4f7d425f5c256d01d6f88f5dfb65385287a2d8"
+  },
+  "transactions": {
+    "sql_literals_unchanged": 2,
+    "execute_calls_unchanged": 2,
+    "original_sha256": "56dd3fd1c4a26e31ed56d1d3a423747a54ab1408d48eed3bb45c7eaf2a4751b6",
+    "adapted_sha256": "56dd3fd1c4a26e31ed56d1d3a423747a54ab1408d48eed3bb45c7eaf2a4751b6"
+  },
+  "reports": {
+    "source": "User-pasted stock_location and top_seller module",
+    "sql_literals_unchanged": 2,
+    "execute_calls_unchanged": 2,
+    "saved_sha256": "c2ce72dd90fa16bc4372ff5f8a592f16fe42066591a84f6e2bf16e0867054d20",
+    "adaptations": "None; saved as reports.py"
+  },
+  "inventory": {
+    "source": "User-pasted restock(connection, store_id, fragrance_id, bottles)",
+    "adaptations": "None; saved as student_code/inventory.py",
+    "saved_sha256": "cd49e4c268fafca3f8cdca8655429c66fdd1b6eeb93cbe8c9e791a9da6d4bb82",
+    "sql_literals_unchanged": 1,
+    "execute_calls_unchanged": 1
+  },
+  "catalog_script_review": {
+    "source": "Latest full user script plus latest country-ID helper and corrected brand insertion",
+    "active_review_source": "docs/supplied_catalog_script.txt",
+    "whole_script_executed_by_app": false,
+    "connected_inserts": [
+      "insert_fragrance",
+      "insert_brand"
+    ],
+    "country_lookup_needed_by_web": false,
+    "remaining_notes": "Preserved BRAND/Brand case difference; optional country creation and terminal-only helper limitations.",
+    "unchanged_other_student_modules_and_sql": [
+      "sql/account.sql",
+      "sql/create_admin_account.sql",
+      "sql/create_user_account.sql",
+      "sql/setup.sql",
+      "student_code/__init__.py",
+      "student_code/customers.py",
+      "student_code/discount.py",
+      "student_code/fragrances.py",
+      "student_code/inventory.py",
+      "student_code/reports.py",
+      "student_code/revenue.py",
+      "student_code/searches.py",
+      "student_code/transactions.py"
+    ]
+  },
+  "fragrances": {
+    "source": "Latest complete user script: direct Brand_ID INSERT, commit, lastrowid and return",
+    "source_path": "docs/supplied_catalog_script.txt",
+    "source_sha256": "c2980ad965426fd053e93f7968907fadf07b1271460baf1f489f0e9782a5904f",
+    "adapted_sha256": "cc8df7179e1bbf5643d251fa0a92ddf80762e67196fe880547c0ebe52b69fda1",
+    "function_body_matches_after_connection_variable_rename": true,
+    "sql_literals_unchanged": 1,
+    "execute_calls_unchanged": 1,
+    "commit_lastrowid_close_return_order_unchanged": true,
+    "ai_attribution_comment_preserved": true,
+    "ready": true,
+    "source_function_sha256": "46ffc3973d3332ba44fc3aea220cb9aef76020e37a923fe43ecd2c3c9b679e34"
+  },
+  "brands": {
+    "source": "Latest supplied insert_brand(country_id=get_country_id(get_country()), name=get_brand_name())",
+    "source_path": "docs/supplied_catalog_script.txt",
+    "source_sha256": "c2980ad965426fd053e93f7968907fadf07b1271460baf1f489f0e9782a5904f",
+    "source_function_sha256": "70f8c5dd7661edffae48e5440e54b4b90a5c01abee8bbc695fd9102795aa6453",
+    "adapted_sha256": "0d85bf25d5672e4145aa16e9ed24b442930a6227f9edc35252cb187dd47ad26a",
+    "function_body_matches_after_connection_variable_rename": true,
+    "sql_literals_unchanged": 1,
+    "execute_calls_unchanged": 1,
+    "commit_lastrowid_close_return_order_unchanged": true,
+    "ready": true,
+    "table_identifier_note": "Preserved BRAND exactly; supplied schema uses Brand. Match case on case-sensitive servers."
+  }
+}

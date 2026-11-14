@@ -1,0 +1,98 @@
+import mysql.connector
+
+# Change these to your own MySQL login
+MYSQL_USER = "admin"
+MYSQL_PASSWORD = "admin_user_password"
+
+mysql_conn = mysql.connector.connect(
+    host="localhost",
+    user=MYSQL_USER,
+    password=MYSQL_PASSWORD,
+    database="scent_db"
+)
+
+def create_country():
+    country = input("Name of Country: ")
+    cursor = mysql_conn.cursor(dictionary=True)
+    sql = """INSERT INTO Country Values (Name);"""
+    cursor.execute(sql, (country))
+    cursor.close()
+
+def all_countries():
+    cursor = mysql_conn.cursor(dictionary=True)
+    sql = """SELECT Country.Name FROM Country;"""
+    cursor.execute(sql)
+    countries_dict_list = cursor.fetchall()
+    countries = []
+    for elt in countries_dict_list:
+        countries.append(elt["Name"])
+    print(countries)
+    cursor.close()
+    return countries
+
+def get_country():
+    country = input("Type a country: ")
+    if country in all_countries():
+        return country
+    else:
+        print("First time hearing from this part of the world!")
+        return create_country()
+
+
+def get_brand_name():
+    return input("Brand Name: ")
+
+
+def insert_brand(country=get_country(), name=get_brand_name()):
+    cursor = mysql_conn.cursor(dictionary=True)
+    sql = """
+INSERT INTO BRAND (Name, Country_ID) Values (%s, %s);"""
+    cursor.execute(sql, (country, name,))
+    cursor.close()
+    return
+
+def get_brand_id(brand):
+    cursor = mysql_conn.cursor(dictionary=True)
+    sql = """
+SELECT Brand_ID FROM Brand WHERE Name = %s"""
+    cursor.execute(sql, (brand, ))
+    id = cursor.fetchone()
+    cursor.close()
+    return id["Brand_ID"]
+
+
+
+def get_brand():
+    brand = input("Brand: ")
+    if not brand in all_brands():
+        print("First time hearing of this brand!")
+        insert_brand(name=brand)
+    return get_brand_id(brand)
+
+def get_fragrance_name():
+    return input("Fragrance Name: ")
+
+def get_fragrance_strength():
+    return input ("""
+Input the Fragrance Strength, Like 'Eau de Parfum': """)
+
+def get_fragrance_size():
+    return input("""Fragrance Size (in ml): """)
+
+def get_price():
+    return input("Price (in USD): ")
+
+
+
+def insert_fragrance(name=get_fragrance_name(), strength=get_fragrance_strength(), size=get_fragrance_size(), brand=get_brand_id(), price=get_price()):
+    cursor = mysql_conn.cursor(dictionary=True)
+    sql = """
+INSERT INTO Fragrance (Fragrance_Name, Strength, Size, Price, Brand_ID) Values (%s, %s, %s, %s, (SELECT Brand_ID From Brand WHERE Name = %s));"""
+    cursor.execute(sql, (name, strength, size, brand, price))
+    cursor.close()
+
+
+
+insert_fragrance()
+
+mysql_conn.close()

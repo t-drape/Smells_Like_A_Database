@@ -1,0 +1,452 @@
+--- before/app.py
++++ after/app.py
+@@ -140,10 +140,13 @@
+             except Problem as exc:
+                 self.send(exc.status, {'error': exc.message})
+             except NotImplementedError:
+-                self.send(501, {'error': 'Adding fragrances is not available yet.'})
++                feature = 'brands' if urlsplit(self.path).path == '/api/brands' else 'fragrances'
++                self.send(501, {'error': 'Adding ' + feature + ' is not available yet.'})
+             except Exception as exc:
+                 errno = getattr(exc, 'errno', None)
+                 adding = urlsplit(self.path).path == '/api/fragrances' and method == 'POST'
++                adding_brand = urlsplit(self.path).path == '/api/brands' and method == 'POST'
++                restocking = urlsplit(self.path).path == '/api/restock' and method == 'POST'
+                 if adding and not self.state.get('staff') and errno in (1142, 1143):
+                     message = ADD_FRAGRANCE_REFUSAL
+                     status = 403
+@@ -155,6 +158,18 @@
+                     status = 422
+                 elif adding and errno in (1048, 1264, 1366, 1406, 3819):
+                     message = 'One or more fragrance values do not meet the database requirements.'
++                    status = 422
++                elif adding_brand and errno == 1062:
++                    message = 'A brand with that name already exists.'
++                    status = 409
++                elif adding_brand and errno == 1452:
++                    message = 'Choose an existing country for this brand.'
++                    status = 422
++                elif adding_brand and errno in (1048, 1264, 1366, 1406, 3819):
++                    message = 'One or more brand values do not meet the database requirements.'
++                    status = 422
++                elif restocking and errno in (1264, 1690, 3819):
++                    message = 'The resulting bottle count exceeds the inventory limits. Check the current stock and quantity.'
+                     status = 422
+                 elif errno in (1044, 1142, 1143, 1227, 1370):
+                     message = 'MySQL refused this operation for the configured database account.'
+@@ -274,6 +289,18 @@
+                 customer, fragrance, store = [positive_id(data, key) for key in ('customer_id', 'fragrance_id', 'store_id')]
+                 message = service.purchase(customer, fragrance, store)
+                 self.send(200 if message == 'Purchase completed successfully.' else 422, {'message': message})
++            elif path == '/api/restock':
++                self.staff_only()
++                self.live_only()
++                store, fragrance, bottles = [positive_id(data, key) for key in ('store_id', 'fragrance_id', 'bottles')]
++                message = service.restock(store, fragrance, bottles)
++                self.send(200 if message == 'Restock completed.' else 422, {'message': message})
++            elif path == '/api/brands':
++                self.staff_only()
++                self.live_only()
++                values = {'name': text_value(data, 'name', 60), 'country_id': positive_id(data, 'country_id')}
++                brand_id = service.add_brand(values)
++                self.send(201, {'message': 'Brand added successfully.', 'brand_id': brand_id})
+             else:
+                 raise Problem('Page not found.', 404)
+ 
+@@ -290,7 +317,7 @@
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument('--preview', action='store_true', help='Use catalogue snapshot; disable database features')
+     parser.add_argument('--staff', action='store_true', help='Prompt for a separate team-desk password')
+-    parser.add_argument('--fragrance-accounts', action='store_true', help='Configure the team-created customer/admin MySQL accounts for Add Fragrance')
++    parser.add_argument('--fragrance-accounts', action='store_true', help='Configure customer/admin MySQL accounts for Add Fragrance and Add Brand')
+     parser.add_argument('--port', type=int, default=8000)
+     args = parser.parse_args()
+     config = None
+@@ -323,7 +350,7 @@
+                 password_key = 'MYSQL_' + role + '_PASSWORD'
+                 profile['password'] = os.environ.get(password_key)
+                 if profile['password'] is None:
+-                    profile['password'] = getpass.getpass('MySQL password for ' + profile['user'] + ' (Add Fragrance): ')
++                    profile['password'] = getpass.getpass('MySQL password for ' + profile['user'] + ' (catalogue additions): ')
+                 profiles.append(profile)
+             customer_config, admin_config = profiles
+     staff_password = os.environ.get('SILLAGE_STAFF_PASSWORD')
+
+--- before/service.py
++++ after/service.py
+@@ -96,6 +96,11 @@
+     def purchase(self, customer, fragrance, store):
+         return self._call('transactions', 'record_purchase', customer, fragrance, store)
+ 
++    def restock(self, store_id, fragrance_id, bottles):
++        # Same limited application profile as Record Purchase; the web route
++        # requires a staff session. The supplied function owns the commit.
++        return self._call('inventory', 'restock', store_id, fragrance_id, bottles)
++
+     def revenue(self, city=None):
+         if city:
+             return self._call('revenue', 'get_specific_revenue', city)
+@@ -109,6 +114,22 @@
+ 
+     def top_seller(self):
+         return self._call('reports', 'top_seller')
++
++    def add_brand(self, values):
++        """Staff-only web route; use the configured admin profile without fallback."""
++        module = importlib.import_module('student_code.brands')
++        if not module.ADD_BRAND_READY:
++            raise NotImplementedError('Brand insertion has not been completed.')
++        if not self.admin_config:
++            raise NotImplementedError('Brand database account has not been configured.')
++        connection = self._connect(self.admin_config)
++        try:
++            brand_id = module.add_brand(connection, **values)
++            if isinstance(brand_id, bool) or not isinstance(brand_id, int) or brand_id <= 0:
++                raise RuntimeError('The student function must return the saved Brand_ID.')
++            return brand_id
++        finally:
++            connection.close()
+ 
+     def add_fragrance(self, values, *, is_staff):
+         """Route one student-owned operation; never manufacture a permission denial.
+
+--- before/student_code/inventory.py
++++ after/student_code/inventory.py
+@@ -0,0 +1,17 @@
++def restock(connection, store_id, fragrance_id, bottles):
++    cursor = connection.cursor()
++    sql = """
++    UPDATE Store_Inventory
++    SET Num_Bottles = Num_Bottles + %s
++    WHERE Store_ID = %s
++    AND Fragrance_ID = %s;
++    """
++    cursor.execute(sql, (bottles, store_id, fragrance_id))
++
++    if cursor.rowcount == 0:
++        cursor.close()
++        return "Not a currently stocked item"
++
++    connection.commit()
++    cursor.close()
++    return "Restock completed."
+
+--- before/student_code/brands.py
++++ after/student_code/brands.py
+@@ -0,0 +1,20 @@
++"""Web interface for the team-owned brand insertion implementation.
++
++The supplied terminal script needs corrections before it can save a brand.
++Read docs/CATALOG_SCRIPT_REVIEW.md. No INSERT, SQL binding, or transaction
++implementation has been supplied by AI in this module.
++"""
++
++ADD_BRAND_READY = False
++
++
++def add_brand(connection, name, country_id):
++    """Return the saved positive integer Brand_ID using the supplied connection.
++
++    name is a nonempty string of at most 60 characters.
++    country_id is a positive integer selected from the existing countries.
++    The team must implement SQL, parameter binding, saving, and cleanup here,
++    and propagate original MySQL exceptions. Do not prompt, connect, or change
++    database accounts inside this function. Enable the flag after testing.
++    """
++    raise NotImplementedError('The team has not completed brand insertion yet.')
+
+--- before/templates/index.html
++++ after/templates/index.html
+@@ -42,6 +42,7 @@
+       <button id="tab-stock" role="tab" aria-selected="false" aria-controls="stock-panel" data-tab="stock" tabindex="-1">FIND IN STORES</button>
+       <button id="tab-top-sellers" role="tab" aria-selected="false" aria-controls="top-sellers-panel" data-tab="top-sellers" tabindex="-1">TOP SELLERS</button>
+       <button id="tab-add-fragrance" role="tab" aria-selected="false" aria-controls="add-fragrance-panel" data-tab="add-fragrance" tabindex="-1">ADD FRAGRANCE</button>
++      <button id="tab-add-brand" role="tab" aria-selected="false" aria-controls="add-brand-panel" data-tab="add-brand" tabindex="-1">ADD BRAND</button>
+     </div>
+     <div id="collection-panel" role="tabpanel" aria-labelledby="tab-collection" tabindex="0">
+     <div class="catalog-tools">
+@@ -55,6 +56,7 @@
+     <div id="stock-panel" class="feature-panel" role="tabpanel" aria-labelledby="tab-stock" tabindex="0" hidden></div>
+     <div id="top-sellers-panel" class="feature-panel" role="tabpanel" aria-labelledby="tab-top-sellers" tabindex="0" hidden></div>
+     <div id="add-fragrance-panel" class="feature-panel" role="tabpanel" aria-labelledby="tab-add-fragrance" tabindex="0" hidden></div>
++    <div id="add-brand-panel" class="feature-panel" role="tabpanel" aria-labelledby="tab-add-brand" tabindex="0" hidden></div>
+   </section>
+ </main>
+ <footer class="site-footer"><a href="/" class="wordmark">SILLAGE</a><p>A study in scent. A project in connection.</p><button class="text-button" data-action="staff">TEAM DESK ↗</button></footer>
+
+--- before/static/app.js
++++ after/static/app.js
+@@ -148,12 +148,13 @@
+     node.className='panel-result result'+(error?' error':'');node.textContent=message;
+   }
+   function setTab(name, fragranceName='') {
+-    if(!['collection','stock','top-sellers','add-fragrance'].includes(name))return;
++    if(!['collection','stock','top-sellers','add-fragrance','add-brand'].includes(name))return;
+     $$('.collection-tabs [role=tab]').forEach(tab=>{const active=tab.dataset.tab===name;tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;});
+     $$('#catalog [role=tabpanel]').forEach(panel=>panel.hidden=panel.id!==name+'-panel');
+     if(name==='stock')stockPanel(fragranceName);
+     if(name==='top-sellers')topSellersPanel();
+     if(name==='add-fragrance')addFragrancePanel();
++    if(name==='add-brand')addBrandPanel();
+   }
+   $('.collection-tabs').addEventListener('keydown',e=>{
+     if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
+@@ -185,6 +186,26 @@
+   function updateRoleNote() {
+     const note=$('#fragrance-session-note');
+     if(note)note.textContent=state.staff?'You are signed in to the team desk.':'Browsing with customer access. Team members can sign in through the team desk.';
++    const brandNote=$('#brand-session-note'),brandButton=$('#add-brand-form button[type=submit]'),brandLogin=$('#brand-login');
++    if(brandNote)brandNote.textContent=state.preview?'Preview only. No brand will be saved here.':state.staff?'You are signed in to the team desk.':'Sign in to the team desk to add a brand.';
++    if(brandButton)brandButton.disabled=!state.staff||state.preview;
++    if(brandLogin)brandLogin.hidden=state.staff||state.preview;
++  }
++  async function refreshCatalogue() {
++    const catalog=await api('/api/catalog');Object.assign(state,catalog);
++    const houses=$('#add-fragrance-form select[name=brand_id]');
++    if(houses){const selected=houses.value;houses.innerHTML='<option value="">Choose a house</option>'+state.brands.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');houses.value=selected;}
++    renderCarousel();renderCatalog();
++  }
++  function addBrandPanel() {
++    const panel=$('#add-brand-panel');
++    panel.innerHTML=`<div class="feature-heading"><p class="eyebrow">A NEW HOUSE</p><h3>Add a brand.</h3><p>Create a house before adding its first fragrance.</p></div><p class="feature-note" id="brand-session-note"></p><button class="outline-button" id="brand-login" data-action="staff">TEAM SIGN IN →</button><form id="add-brand-form" class="feature-form"><div class="form-row"><label class="field">BRAND NAME<input name="name" maxlength="60" required></label><label class="field">COUNTRY<select name="country_id" required><option value="">Choose a country</option>${state.countries.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></label></div><p class="feature-note">Choose an existing country. New country registration is not available here.</p><button class="pill" type="submit">ADD BRAND →</button></form><div class="panel-result result" role="status" hidden></div><button class="text-button" data-action="open-add-fragrance">CONTINUE TO ADD FRAGRANCE →</button>`;
++    updateRoleNote();
++    $('#add-brand-form').addEventListener('submit',async e=>{
++      e.preventDefault();const button=$('button[type=submit]',e.target);button.disabled=true;let saved=false;
++      try{const r=await api('/api/brands',Object.fromEntries(new FormData(e.target)));saved=true;panelMessage(panel,`${r.message} Brand ID: ${r.brand_id}.`);e.target.reset();await refreshCatalogue();
++      }catch(err){panelMessage(panel,saved?'Brand saved, but the house list could not refresh. Reload before submitting again.':err.message,!saved);}finally{button.disabled=!state.staff||state.preview;}
++    });
+   }
+   function addFragrancePanel() {
+     const panel=$('#add-fragrance-panel');
+@@ -198,11 +219,11 @@
+   }
+   function staff(){
+     if(state.staff){desk();return;}
+-    openModal('staff-login',`<p class="eyebrow">TEAM DESK</p><h2 id="modal-title">Behind the collection.</h2><p>Sign in to view reports and record purchases.</p><form id="staff-login-form"><label class="field">TEAM-DESK PASSWORD<input name="password" type="password" autocomplete="current-password" required maxlength="1024"></label><button class="pill" type="submit">SIGN IN →</button></form>${resultBox}${!state.staff_enabled?'<p class="form-note">The team desk is disabled in this preview. Start the local Python app with --staff to enable it.</p>':''}`);
++    openModal('staff-login',`<p class="eyebrow">TEAM DESK</p><h2 id="modal-title">Behind the collection.</h2><p>Sign in to view reports, record purchases, restock stores, and manage the collection.</p><form id="staff-login-form"><label class="field">TEAM-DESK PASSWORD<input name="password" type="password" autocomplete="current-password" required maxlength="1024"></label><button class="pill" type="submit">SIGN IN →</button></form>${resultBox}${!state.staff_enabled?'<p class="form-note">The team desk is disabled in this preview. Start the local Python app with --staff to enable it.</p>':''}`);
+     $('#staff-login-form').addEventListener('submit',async e=>{e.preventDefault();const b=$('button',e.target);b.disabled=true;try{const r=await api('/api/staff/login',Object.fromEntries(new FormData(e.target)));state.csrf=r.csrf;state.staff=true;updateRoleNote();desk();}catch(err){result(err.message,true);}finally{b.disabled=false;}});
+   }
+   function desk(tab='revenue'){
+-    openModal('desk',`<p class="eyebrow">TEAM DESK</p><h2 id="modal-title">Behind the collection.</h2><div class="desk-tabs"><button data-action="desk-revenue" class="${tab==='revenue'?'active':''}">REVENUE</button><button data-action="desk-discounts" class="${tab==='discounts'?'active':''}">PURCHASE FOLLOW-UP</button><button data-action="desk-purchase" class="${tab==='purchase'?'active':''}">RECORD PURCHASE</button><button data-action="open-add-fragrance">ADD FRAGRANCE</button></div><div id="desk-body"></div><div class="desk-foot"><button class="text-button" data-action="staff-logout">SIGN OUT ↗</button></div>`,true);
++    openModal('desk',`<p class="eyebrow">TEAM DESK</p><h2 id="modal-title">Behind the collection.</h2><div class="desk-tabs"><button data-action="desk-revenue" class="${tab==='revenue'?'active':''}">REVENUE</button><button data-action="desk-discounts" class="${tab==='discounts'?'active':''}">PURCHASE FOLLOW-UP</button><button data-action="desk-purchase" class="${tab==='purchase'?'active':''}">RECORD PURCHASE</button><button data-action="desk-restock" class="${tab==='restock'?'active':''}">RESTOCK</button><button data-action="open-add-fragrance">ADD FRAGRANCE</button><button data-action="open-add-brand">ADD BRAND</button></div><div id="desk-body"></div><div class="desk-foot"><button class="text-button" data-action="staff-logout">SIGN OUT ↗</button></div>`,true);
+     const body=$('#desk-body');
+     if(tab==='revenue'){
+       const cities=[...new Set(state.stores.map(s=>s.city))].sort();
+@@ -212,6 +233,16 @@
+       const before=new Date();before.setDate(before.getDate()-30);
+       body.innerHTML=`<p>Find purchase rows older than a chosen date for fragrances priced above $200. This report does not check each customer’s most recent purchase.</p><form id="discount-form"><label class="field">PURCHASED BEFORE<input name="before" type="date" value="${before.toISOString().slice(0,10)}" required></label><button class="pill" type="submit">VIEW MATCHING PURCHASES →</button></form>${resultBox}<div id="discount-results"></div>`;
+       $('#discount-form').addEventListener('submit',async e=>{e.preventDefault();const b=$('button',e.target);b.disabled=true;try{const r=await api('/api/discounts?before='+encodeURIComponent(new FormData(e.target).get('before')));result(`${r.rows.length} matching purchase rows.`);$('#discount-results').innerHTML=table(r.rows,[['Name','Customer'],['Price','Current price',money],['Purchase_Date','Purchase date']]);}catch(err){result(err.message,true);}finally{b.disabled=false;}});
++    } else if(tab==='restock') {
++      body.innerHTML=`<p>Add bottles to an existing store inventory record. A fragrance with zero bottles can be restocked; a missing store/fragrance record cannot be created here.</p><form id="restock-form"><label class="field">STORE<select name="store_id" required><option value="">Choose a store</option>${state.stores.map(s=>`<option value="${s.id}">${esc(s.city)} · ${esc(s.street)} · #${s.id}</option>`).join('')}</select></label><label class="field">FRAGRANCE<select name="fragrance_id" required><option value="">Choose a fragrance</option>${state.products.map(p=>`<option value="${p.id}">${esc(p.house)} · ${esc(p.name)} · ${esc(p.strength)} · ${p.size} ml · #${p.id}</option>`).join('')}</select></label><label class="field">BOTTLES TO ADD<input name="bottles" type="number" min="1" max="2147483647" step="1" required></label><p class="form-note" id="restock-inventory"></p><button class="pill" type="submit">RESTOCK →</button></form>${resultBox}`;
++      const form=$('#restock-form');
++      const showStock=()=>{const values=Object.fromEntries(new FormData(form));const product=state.products.find(p=>p.id===Number(values.fragrance_id)),stock=product?.inventory.find(s=>s.store_id===Number(values.store_id));$('#restock-inventory').textContent=!values.store_id||!values.fragrance_id?'Choose a store and a fragrance to view the recorded stock.':stock?`${stock.bottles} bottles currently recorded in this store.`:'No inventory record exists for this store and fragrance. Restock will not create one.';};
++      form.addEventListener('change',showStock);showStock();
++      form.addEventListener('submit',async e=>{
++        e.preventDefault();const button=$('button[type=submit]',form);button.disabled=true;let saved=false;
++        try{const r=await api('/api/restock',Object.fromEntries(new FormData(form)));saved=true;result(r.message);form.elements.bottles.value='';await refreshCatalogue();if(form.isConnected)showStock();
++        }catch(err){if(form.isConnected)result(saved?'Restock saved, but the stock display could not refresh. Reload before submitting again.':err.message,!saved);}finally{button.disabled=false;}
++      });
+     } else {
+       body.innerHTML=`<p>Record one bottle sold to an existing customer. A successful purchase reduces inventory and adds the purchase record together.</p><form id="purchase-form"><label class="field">CUSTOMER ID<input name="customer_id" type="number" min="1" max="2147483647" step="1" required></label><label class="field">FRAGRANCE<select name="fragrance_id" required>${state.products.map(p=>`<option value="${p.id}">${esc(p.name)} · ${p.size} ml · #${p.id}</option>`).join('')}</select></label><label class="field">STORE<select name="store_id" required>${state.stores.map(s=>`<option value="${s.id}">${esc(s.city)} · ${esc(s.street)} · #${s.id}</option>`).join('')}</select></label><p class="form-note" id="inventory-before"></p><button class="pill" type="submit">RECORD ONE-BOTTLE PURCHASE →</button></form>${resultBox}`;
+       const showInventory=()=>{const data=Object.fromEntries(new FormData($('#purchase-form')));const p=state.products.find(p=>p.id===Number(data.fragrance_id)), stock=p?.inventory.find(s=>s.store_id===Number(data.store_id));$('#inventory-before').textContent=stock?`${stock.bottles} bottles recorded in this store.`:'No inventory row is recorded for this fragrance and store.';};
+@@ -233,6 +264,7 @@
+     else if(action==='detail')details(id);else if(action==='sample')sample(id);
+     else if(action==='stock-detail'){const p=state.products.find(p=>p.id===id);if(p){modal.close();setTab('stock',p.name);$('#catalog').scrollIntoView();}}
+     else if(action==='open-add-fragrance'){modal.close();setTab('add-fragrance');$('#catalog').scrollIntoView();}
++    else if(action==='open-add-brand'){modal.close();setTab('add-brand');$('#catalog').scrollIntoView();}
+     else if(action==='shop'||action==='show-all')showCatalog();else if(action==='explore')showCatalog({mode:state.mode,group:state.group});
+     else if(action==='load-more'){state.limit+=24;renderCatalog();}
+     else if(action==='add-bag'){if(!state.bag.includes(id)){state.bag.push(id);updateBag();toast('Added to your bag.');}else toast('This bottle is already in your bag.');}
+
+--- before/tests/test_web.py
++++ after/tests/test_web.py
+@@ -24,6 +24,9 @@
+         self.calls = []
+         self.refuse = False
+         self.fragrance_error = None
++        self.brand_error = None
++        self.restock_error = None
++        self.restock_message = 'Restock completed.'
+     def catalog(self):
+         return Service(preview=True).catalog()
+     def revenue(self, city=None):
+@@ -51,6 +54,16 @@
+     def top_seller(self):
+         self.calls.append(('top_seller',))
+         return [{'Fragrance_Name':'Example','Total_Purchases':7}]
++    def restock(self, *args):
++        self.calls.append(('restock', args))
++        if self.restock_error:
++            raise self.restock_error
++        return self.restock_message
++    def add_brand(self, values):
++        self.calls.append(('add_brand', values))
++        if self.brand_error:
++            raise self.brand_error
++        return 6
+     def add_fragrance(self, values, *, is_staff):
+         self.calls.append(('add_fragrance', is_staff, values))
+         if self.fragrance_error:
+@@ -262,6 +275,85 @@
+         self.assertNotEqual(data['error'], ADD_FRAGRANCE_REFUSAL)
+         self.assertEqual(self.service.calls, [])
+ 
++    def test_restock_and_brand_require_verified_staff(self):
++        for path, values in [('/api/restock', {'store_id':1,'fragrance_id':2,'bottles':3}),
++                             ('/api/brands', {'name':'New house','country_id':1})]:
++            values.update(role='admin', is_staff=True)
++            self.assertEqual(self.call(path, values)[0], 403)
++        self.assertEqual(self.service.calls, [])
++
++    def test_restock_maps_integer_inputs_and_preserves_result(self):
++        self.login()
++        code, data = self.call('/api/restock', {'store_id':'2','fragrance_id':'7','bottles':'12'})
++        self.assertEqual((code, data['message']), (200, 'Restock completed.'))
++        self.assertEqual(self.service.calls, [('restock', (2,7,12))])
++
++    def test_missing_inventory_row_is_not_reported_as_success(self):
++        self.login()
++        self.service.restock_message = 'Not a currently stocked item'
++        code, data = self.call('/api/restock', {'store_id':2,'fragrance_id':7,'bottles':12})
++        self.assertEqual((code, data['message']), (422, 'Not a currently stocked item'))
++
++    def test_invalid_restock_inputs_never_reach_database(self):
++        self.login()
++        for key in ('store_id', 'fragrance_id', 'bottles'):
++            for value in (0,-1,1.5,True,None,'2.0','2147483648','1; UPDATE X'):
++                with self.subTest(key=key,value=value):
++                    data = {'store_id':1,'fragrance_id':2,'bottles':3, key:value}
++                    self.assertEqual(self.call('/api/restock', data)[0], 400)
++        self.assertEqual(self.service.calls, [])
++
++    def test_restock_permission_and_overflow_messages(self):
++        self.login()
++        for errno, status, phrase in [(1142,403,'MySQL refused'),(1264,422,'inventory limits'),(2003,503,'connection')]:
++            with self.subTest(errno=errno):
++                error = Exception('PRIVATE')
++                error.errno = errno
++                self.service.restock_error = error
++                code, data = self.call('/api/restock', {'store_id':1,'fragrance_id':2,'bottles':3})
++                self.assertEqual(code,status)
++                self.assertIn(phrase,data['error'])
++                self.assertNotIn('PRIVATE',data['error'])
++
++    def test_brand_accepts_name_and_country_id_only(self):
++        self.login()
++        code, data = self.call('/api/brands', {'name':"L'Example",'country_id':'3','user':'root','role':'admin'})
++        self.assertEqual((code,data['brand_id']),(201,6))
++        self.assertEqual(self.service.calls,[('add_brand',{'name':"L'Example",'country_id':3})])
++
++    def test_invalid_brand_values_are_not_sent_to_database(self):
++        self.login()
++        for changes in ({'name':''},{'name':'x'*61},{'country_id':'France'},{'country_id':0},{'country_id':True}):
++            self.assertEqual(self.call('/api/brands', {'name':'Valid','country_id':1,**changes})[0],400)
++        self.assertEqual(self.service.calls,[])
++
++    def test_brand_errors_are_specific_without_exposing_sql(self):
++        self.login()
++        for error, status, phrase in [(NotImplementedError('pending'),501,'brands'),
++                                     (Refused('PRIVATE'),403,'MySQL refused')]:
++            self.service.brand_error=error
++            code,data=self.call('/api/brands',{'name':'Valid','country_id':1})
++            self.assertEqual(code,status)
++            self.assertIn(phrase,data['error'])
++            self.assertNotIn('PRIVATE',data['error'])
++        for errno, status, phrase in [(1062,409,'already exists'),(1452,422,'country'),(1406,422,'requirements')]:
++            error=Exception('PRIVATE');error.errno=errno
++            self.service.brand_error=error
++            code,data=self.call('/api/brands',{'name':'Valid','country_id':1})
++            self.assertEqual(code,status)
++            self.assertIn(phrase,data['error'])
++
++    def test_restock_and_brand_require_csrf_and_live_mode(self):
++        self.login()
++        forms=[('/api/restock',{'store_id':1,'fragrance_id':2,'bottles':3}),
++               ('/api/brands',{'name':'Valid','country_id':1})]
++        for path,values in forms:
++            self.assertEqual(self.call(path,values,csrf=False)[0],403)
++        self.service.preview=True
++        for path,values in forms:
++            self.assertEqual(self.call(path,values)[0],503)
++        self.assertEqual(self.service.calls,[])
++
+ 
+ class PasswordCompatibilityTests(unittest.TestCase):
+     def test_startup_and_login_without_hashlib_scrypt(self):
+
+--- before/tests/test_service.py
++++ after/tests/test_service.py
+@@ -75,6 +75,73 @@
+                 self.service.add_fragrance({}, is_staff=True)
+         self.connection.close.assert_called_once()
+ 
++    def test_restock_runs_supplied_function_and_closes_base_connection(self):
++        cursor = self.connection.cursor.return_value
++        cursor.rowcount = 1
++        self.assertEqual(self.service.restock(2,7,12),'Restock completed.')
++        self.service._connect.assert_called_once_with()
++        # Verify the form's store/fragrance/count order reaches the student's
++        # existing execute tuple in the correct count/store/fragrance order.
++        self.assertEqual(cursor.execute.call_args.args[1],(12,2,7))
++        self.connection.commit.assert_called_once()
++        self.connection.rollback.assert_not_called()
++        cursor.close.assert_called_once()
++        self.connection.close.assert_called_once()
++
++    def test_restock_missing_row_does_not_commit(self):
++        self.connection.cursor.return_value.rowcount=0
++        self.assertEqual(self.service.restock(2,7,12),'Not a currently stocked item')
++        self.connection.commit.assert_not_called()
++        self.connection.close.assert_called_once()
++
++    def test_restock_exception_closes_connection_without_retry(self):
++        error=Exception('database refused')
++        self.connection.cursor.return_value.execute.side_effect=error
++        with self.assertRaises(Exception) as caught:
++            self.service.restock(2,7,12)
++        self.assertIs(caught.exception,error)
++        self.service._connect.assert_called_once_with()
++        self.connection.commit.assert_not_called()
++        self.connection.close.assert_called_once()
++
++    def test_brand_uses_admin_connection_and_student_save_contract(self):
++        function=Mock(return_value=6)
++        module=SimpleNamespace(ADD_BRAND_READY=True,add_brand=function)
++        with patch('service.importlib.import_module',return_value=module):
++            self.assertEqual(self.service.add_brand({'name':'House','country_id':3}),6)
++        self.service._connect.assert_called_once_with(self.admin)
++        function.assert_called_once_with(self.connection,name='House',country_id=3)
++        self.connection.commit.assert_not_called()
++        self.connection.rollback.assert_not_called()
++        self.connection.close.assert_called_once()
++
++    def test_pending_brand_function_and_missing_admin_do_not_connect(self):
++        for ready in (False,True):
++            service=Service({'user':'scent_app'})
++            service._connect=Mock()
++            module=SimpleNamespace(ADD_BRAND_READY=ready)
++            with patch('service.importlib.import_module',return_value=module):
++                with self.assertRaises(NotImplementedError):
++                    service.add_brand({})
++            service._connect.assert_not_called()
++
++    def test_brand_error_and_invalid_return_close_connection(self):
++        error=Exception('refused');error.errno=1142
++        function=Mock(side_effect=error)
++        module=SimpleNamespace(ADD_BRAND_READY=True,add_brand=function)
++        with patch('service.importlib.import_module',return_value=module):
++            with self.assertRaises(Exception) as caught:
++                self.service.add_brand({})
++            self.assertIs(caught.exception,error)
++            function.side_effect=None
++            for value in (None,True,0,-1,'6'):
++                function.return_value=value
++                with self.assertRaises(RuntimeError):
++                    self.service.add_brand({})
++        self.assertEqual(self.connection.close.call_count,6)
++        self.connection.commit.assert_not_called()
++        self.connection.rollback.assert_not_called()
++
+ 
+ if __name__ == '__main__':
+     unittest.main()

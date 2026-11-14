@@ -1,0 +1,1351 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python adaptation diff and explanation</title><style>
+:root{font-family:Arial,Helvetica,sans-serif;color:#182522;background:#f2f4f1;line-height:1.6}*{box-sizing:border-box}body{margin:0}main{max-width:1100px;margin:auto;background:white;padding:54px 58px 70px}h1{font-size:36px;line-height:1.15;margin:0 0 16px;letter-spacing:-.035em}h2{font-size:28px;line-height:1.2;margin:4px 0 14px}h3{font-size:18px;margin:28px 0 10px}p,li{font-size:15px}li{margin:0 0 12px}ol,ul{padding-left:24px}.kicker{font-size:11px;font-weight:700;letter-spacing:.13em;color:#536a5b;margin:0 0 12px}.lead{font-size:18px;color:#344b40}.callout,.verification{padding:17px 20px;background:#edf3ed;border-left:4px solid #58715b}.note{font-size:13px;color:#53605a}.metrics{font-size:12px;color:#536a5b}nav{display:flex;flex-wrap:wrap;gap:12px;margin:25px 0}nav a,button{display:inline-block;border:1px solid #a0b4a2;border-radius:5px;padding:7px 13px;color:#24452d;text-decoration:none;background:white;font:inherit;font-size:13px}section{margin-top:52px;padding-top:22px;border-top:1px solid #ccd7cc}.table-wrap{overflow:auto;margin:20px 0}table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.5;text-align:left}th{background:#edf3ed;font-weight:700}th,td{border:1px solid #d7dfd7;padding:11px;vertical-align:top}code{font-family:Consolas,Menlo,monospace;font-size:.9em;overflow-wrap:anywhere}.diff{background:#f8faf7;border:1px solid #d7dfd7;padding:14px;font-family:Consolas,Menlo,monospace;font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:4}.diff span{display:inline}.added{color:#155c2b;background:#e0f3e5}.removed{color:#8b302e;background:#fce9e7}.hunk{color:#245a86;background:#e9f0fa}.file{font-weight:bold;color:#344b40}.hash{font-size:11px;word-break:break-all}footer{font-size:12px;color:#53605a;margin-top:40px}@media(max-width:700px){main{padding:26px 18px}h1{font-size:28px}.diff{font-size:11px}th,td{padding:8px}}@media print{:root{background:white}main{padding:0;max-width:none}nav,button{display:none}h2,h3{break-after:avoid}tr{break-inside:avoid}.diff{font-size:9px;line-height:1.45}section{break-before:page}.table-wrap{overflow:visible}th,td{padding:7px}p,li{font-size:11px}h1{font-size:26px}h2{font-size:21px}.lead{font-size:13px}@page{size:letter;margin:.65in}}
+</style></head><body><main><p class="kicker">DB_SYSTEMS · CS317 · CODE REVIEW RECORD</p><h1>Python adaptation diff and explanation</h1><p class="lead">The three command-line scripts were adapted into callable database modules for the website. The retained SQL strings, execute-call arguments, and query-function bodies were verified against the uploaded originals.</p><p>This report compares <code>searches(1).py</code>, <code>revenue(1).py</code>, and <code>discount(1).py</code> with the corresponding <code>student_code/</code> files inside the delivered <code>Sillage_Website.zip</code>. It describes AI-made changes rather than attributing those changes to the student team.</p><p class="callout"><strong>Precise scope:</strong> each of the five retained function bodies changes only <code>mysql_conn</code> to <code>connection</code> when creating its cursor. Function signatures, connection setup, default inputs, terminal output, import-time behavior, and one duplicate function also changed outside those bodies. These interface changes have observable effects, documented below.</p><p class="note">This report includes every unified-diff hunk with original and adapted line numbers. Only original <code>MYSQL_PASSWORD</code> literals are masked. Usernames and all other source text are retained in the diff; masking was applied to this report only, not to the uploaded source. The password masking means this is a review diff, not a patch to apply automatically. Pure blank-line changes are included.</p><p class="callout"><strong>Earlier activation:</strong> Add Fragrance was connected in that update. <a href="#fragrance-connected">Read the latest adaptation and tests</a>. Earlier sections record historical states.</p><p class="callout"><strong>Current status:</strong> Restock, Add Fragrance, and Add Brand are connected. <a href="#brand-connected">Read the latest brand adaptation</a>. Check BRAND/Brand spelling on case-sensitive servers.</p><nav><a href="#brand-connected">Latest: brand connected</a><a href="#fragrance-connected">Latest: fragrance connected</a><a href="#final-fragrance-tuple">Final fragrance tuple correction</a><a href="#inventory-additions">Latest Restock / Brand update</a><a href="#shared">Shared changes</a><a href="#searches">searches.py</a><a href="#revenue">revenue.py</a><a href="#discount">discount.py</a><a href="#verification">Verification</a><a href="#feature-additions">Feature additions</a><button onclick="window.print()">Print or save as PDF</button></nav>
+<section id="shared"><p class="kicker">CONTEXT FOR ALL THREE FILES</p><h2>What moved to the web application</h2><p>The original files mixed connection setup, database functions, terminal prompts, and immediate execution. The adapted files contain callable functions. The new web code supplies a connection and values, calls the function, and presents the result.</p>
+<div class="table-wrap"><table><thead><tr><th>Responsibility</th><th>Original</th><th>Adapted application</th></tr></thead><tbody><tr><td>MySQL connection and credentials</td><td>Hardcoded per-module credentials and a connection created when the script/import ran.</td><td><code>app.py</code> reads startup configuration; <code>Service._connect()</code> opens a connection for each operation. Passwords are obtained from the environment or a terminal prompt.</td></tr><tr><td>Effective database account</td><td>Searches used <code>customer</code>; revenue and discount used <code>admin</code>.</td><td>All three now use the single configured username, defaulting to the team-defined <code>scent_app</code>. The staff-page password is application authorization; it does not switch MySQL accounts. This is a permissions change in how the application connects, even though no GRANT statement was edited.</td></tr><tr><td>Connection lifetime</td><td>Each file owned a global connection and closed it at its bottom.</td><td><code>Service._call()</code> opens a connection, passes it to the function, and closes it in <code>finally</code>. It does not commit or roll back for these query functions.</td></tr><tr><td>Inputs</td><td>Terminal <code>input()</code> helpers and function-definition-time defaults.</td><td>Browser forms and HTTP validation provide explicit arguments. The existing SQL parameter tuples remain untouched.</td></tr><tr><td>Output</td><td>Helpers printed names, totals, or promotional text.</td><td>Returned dictionaries/lists flow through JSON to browser tables and currency formatting. Filtering/formatting differences are stated for each file.</td></tr><tr><td>Imports and comments</td><td>Connector/date imports supported removed setup/helper code.</td><td>Unused imports were removed. The same explanatory header comment was added to each adapted file. Blank lines were removed alongside the deleted sections.</td></tr><tr><td>Names</td><td>Uploaded filenames contained the download suffix <code>(1)</code>.</td><td>Adapted modules use the importable names <code>searches.py</code>, <code>revenue.py</code>, and <code>discount.py</code> inside <code>student_code/</code>.</td></tr></tbody></table></div><h3>Why the default arguments matter</h3><pre class="diff"># Original: get_note() runs when Python executes this definition.
+def get_fragrances_with_note(user_input=get_note()):
+
+# Adapted: the caller provides the connection and note for this request.
+def get_fragrances_with_note(connection, user_input):</pre><p>The same definition-time rule applied to <code>get_store()</code> and <code>get_discount_date()</code>. The original discount cutoff was captured once when the module loaded. The service now calculates <code>date.today() - timedelta(days=30)</code> when called without a cutoff, while the website form can supply a different date.</p><h3>Behavior beyond these three files</h3><ul><li>The ingredient query always returned all classifications, but the old print helper showed only clean fragrances. The new report shows all classifications.</li><li>The old revenue formatter attempted <code>float(TotalRevenue)</code>. An empty SQL SUM can be NULL, which would fail that conversion. The new website displays an empty total as $0.00 and reports that no matching purchases were found. The SQL itself is unchanged.</li><li>The removed discount print helper claimed the customer had not purchased since each returned date. The query does not establish that. The new report labels the actual older-purchase rows and sends no messages.</li></ul><p>These are presentation and orchestration changes. Saying “only the function signatures changed” would be incomplete. Saying “the retained SQL and parameterization were preserved” is supported by the comparison.</p></section><section id="searches"><p class="kicker">ADAPTED FILE</p><h2>searches.py</h2><p>Keep the two fragrance-query functions callable from website requests.</p><p class="metrics">5 added lines · 47 removed lines · whitespace included</p><div class="table-wrap"><table><thead><tr><th>Original interface</th><th>Adapted interface</th><th>Source line locations</th></tr></thead><tbody><tr><td><code>get_fragrances_with_natural_status()</code></td><td><code>get_fragrances_with_natural_status(connection)</code></td><td>Original 18–38; adapted 3–23</td></tr><tr><td><code>get_fragrances_with_note(user_input=get_note())</code></td><td><code>get_fragrances_with_note(connection, user_input)</code></td><td>Original 40–49; adapted 25–34</td></tr></tbody></table></div><h3>Complete change explanation</h3><ol><li><strong>Removed module-level connection setup.</strong> Removed the mysql.connector import, hardcoded customer username/password variables, and mysql.connector.connect(...) block. The web service now opens and supplies the connection. This module no longer chooses which MySQL user runs its queries.</li><li><strong>Removed get_note().</strong> The original helper prompted in the terminal. The website note-search form now supplies the note string. The HTTP layer validates that it is nonempty and at most 45 characters; the query still receives the existing user_input parameter.</li><li><strong>Changed get_fragrances_with_natural_status().</strong> Added a required connection argument and changed mysql_conn.cursor(dictionary=True) to connection.cursor(dictionary=True). No other statement in this function body changed.</li><li><strong>Changed get_fragrances_with_note(...).</strong> Changed user_input=get_note() to the required arguments connection, user_input. Python evaluates default argument expressions when a function is defined, so the original get_note() call could prompt during import. The adapted function receives an explicit note on each request.</li><li><strong>Removed print_fragrance_names(...).</strong> This helper printed the Fragrance_Name fields. The query still returns its original list of dictionaries; the browser now renders those names in a table.</li><li><strong>Removed print_natural_fragrances(...).</strong> The original helper printed only rows whose Natural_Status equaled Clean Fragrance. The website ingredient report now displays every row and its classification. This is a deliberate display change; the grouped query and its returned rows are unchanged.</li><li><strong>Removed startup execution and global close.</strong> Removed the two top-level calls that fetched and printed results, plus mysql_conn.close(). Importing this file now defines functions without prompting, querying, or printing. The new service closes each connection in a finally block.</li></ol><p class="verification"><strong>Preserved database work:</strong> Both retained SQL string values match the originals exactly. The execute(sql) call, execute(sql, (user_input,)) call, fetchall(), cursor.close(), and returned values are preserved.</p><h3>Full unified diff</h3><pre class="diff"><span class="file">--- original/searches(1).py</span>
+<span class="file">+++ adapted/student_code/searches.py</span>
+<span class="hunk">@@ -1,22 +1,7 @@</span>
+<span class="removed">-import mysql.connector</span>
+<span class="added">+# Student SQL and execute arguments preserved; connection is supplied by the web app.</span>
+<span class="context"> </span>
+<span class="removed">-</span>
+<span class="removed">-# Change these to your own MySQL login</span>
+<span class="removed">-MYSQL_USER = &quot;customer&quot;</span>
+<span class="removed">-MYSQL_PASSWORD = &quot;[REDACTED ORIGINAL PASSWORD]&quot;</span>
+<span class="removed">-</span>
+<span class="removed">-mysql_conn = mysql.connector.connect(</span>
+<span class="removed">-    host=&quot;localhost&quot;,</span>
+<span class="removed">-    user=MYSQL_USER,</span>
+<span class="removed">-    password=MYSQL_PASSWORD,</span>
+<span class="removed">-    database=&quot;scent_db&quot;</span>
+<span class="removed">-)</span>
+<span class="removed">-</span>
+<span class="removed">-def get_note():</span>
+<span class="removed">-    return str(input(&quot;Fragrance Note: &quot;))</span>
+<span class="removed">-</span>
+<span class="removed">-def get_fragrances_with_natural_status():</span>
+<span class="removed">-    cursor = mysql_conn.cursor(dictionary=True)</span>
+<span class="added">+def get_fragrances_with_natural_status(connection):</span>
+<span class="added">+    cursor = connection.cursor(dictionary=True)</span>
+<span class="context">     sql = &quot;&quot;&quot;</span>
+<span class="context"> SELECT Fragrance.Fragrance_Name, Brand.Name,</span>
+<span class="context"> CASE</span>
+<span class="hunk">@@ -37,8 +22,8 @@</span>
+<span class="context">     cursor.close()</span>
+<span class="context">     return fragrances</span>
+<span class="context"> </span>
+<span class="removed">-def get_fragrances_with_note(user_input=get_note()):</span>
+<span class="removed">-    cursor = mysql_conn.cursor(dictionary=True)</span>
+<span class="added">+def get_fragrances_with_note(connection, user_input):</span>
+<span class="added">+    cursor = connection.cursor(dictionary=True)</span>
+<span class="context">     sql = &quot;&quot;&quot;SELECT DISTINCT Fragrance.Fragrance_Name FROM Fragrance_Note</span>
+<span class="context"> INNER JOIN Fragrance_Has_Note ON Fragrance_Note.Note_ID = Fragrance_Has_Note.Note_ID</span>
+<span class="context"> INNER JOIN Fragrance ON Fragrance.Fragrance_ID = Fragrance_Has_Note.Fragrance_ID</span>
+<span class="hunk">@@ -47,30 +32,3 @@</span>
+<span class="context">     fragrances = cursor.fetchall()</span>
+<span class="context">     cursor.close()</span>
+<span class="context">     return fragrances</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-def print_fragrance_names(name_dictionary):</span>
+<span class="removed">-    print(&quot;Fragrances:&quot;)</span>
+<span class="removed">-    for row in name_dictionary:</span>
+<span class="removed">-        fragrance = row[&quot;Fragrance_Name&quot;]</span>
+<span class="removed">-        print(fragrance)</span>
+<span class="removed">-</span>
+<span class="removed">-def print_natural_fragrances(name_dictionary):</span>
+<span class="removed">-    print(&quot;Clean Fragrances:&quot;)</span>
+<span class="removed">-    for row in name_dictionary:</span>
+<span class="removed">-        fragrance = row[&quot;Fragrance_Name&quot;]</span>
+<span class="removed">-        brand = row[&quot;Name&quot;]</span>
+<span class="removed">-        natural_status = row[&quot;Natural_Status&quot;]</span>
+<span class="removed">-        if natural_status == &quot;Clean Fragrance&quot;:</span>
+<span class="removed">-            print(f&quot;&quot;&quot;</span>
+<span class="removed">-    Brand: {brand}</span>
+<span class="removed">-    Fragrance: {fragrance}</span>
+<span class="removed">-            &quot;&quot;&quot;)</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-print_fragrance_names(get_fragrances_with_note())</span>
+<span class="removed">-print_natural_fragrances(get_fragrances_with_natural_status())</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-mysql_conn.close()</span></pre></section><section id="revenue"><p class="kicker">ADAPTED FILE</p><h2>revenue.py</h2><p>Keep total-revenue and city-specific revenue queries reusable from staff web forms.</p><p class="metrics">5 added lines · 30 removed lines · whitespace included</p><div class="table-wrap"><table><thead><tr><th>Original interface</th><th>Adapted interface</th><th>Source line locations</th></tr></thead><tbody><tr><td><code>get_gross_revenue()</code></td><td><code>get_gross_revenue(connection)</code></td><td>Original 15–23; adapted 3–11</td></tr><tr><td><code>get_specific_revenue(user_input=get_store())</code></td><td><code>get_specific_revenue(connection, user_input)</code></td><td>Original 28–40; adapted 13–25</td></tr></tbody></table></div><h3>Complete change explanation</h3><ol><li><strong>Removed module-level connection setup.</strong> Removed the mysql.connector import, hardcoded admin credentials, and immediate connection. The server-supplied connection determines the effective MySQL account and privileges.</li><li><strong>Changed get_gross_revenue().</strong> Added connection as a required argument and replaced mysql_conn.cursor(dictionary=True) with connection.cursor(dictionary=True). Its SELECT/SUM/JOIN, execution, fetchone(), cursor.close(), and return are otherwise unchanged.</li><li><strong>Removed get_store().</strong> The terminal City prompt is replaced by the website store-city selection. The HTTP layer passes its city string explicitly to the service and then to the existing function.</li><li><strong>Changed get_specific_revenue(...).</strong> Replaced user_input=get_store() with connection, user_input. This removes a terminal prompt that previously ran when the function was defined, and permits a different city on each request. The query still uses the same scalar subquery and the exact same (user_input,) parameter tuple.</li><li><strong>Removed normalize_revenue_from_sql(...).</strong> This helper extracted TotalRevenue and converted it to float for terminal display. The query function now returns its original dictionary directly to the web adapter. The HTTP JSON serializer converts Decimal values to strings; browser code handles display formatting.</li><li><strong>Removed two top-level print calls.</strong> The original script ran and printed both reports immediately. Reports now run when the signed-in team-desk user submits a form. The browser formats the amount as USD currency instead of Python applying :.2f in a print statement.</li><li><strong>Removed mysql_conn.close().</strong> Connection ownership moved to the service, which closes it after the function completes, including when the function raises an exception. The retained function-local cursor.close() calls were not removed.</li></ol><p class="verification"><strong>Preserved database work:</strong> Both retained SQL strings and execute argument expressions are exact matches. The SUM still uses current Fragrance.Price, and the store report still requires the city subquery to return at most one Store_ID.</p><h3>Full unified diff</h3><pre class="diff"><span class="file">--- original/revenue(1).py</span>
+<span class="file">+++ adapted/student_code/revenue.py</span>
+<span class="hunk">@@ -1,19 +1,7 @@</span>
+<span class="removed">-import mysql.connector</span>
+<span class="added">+# Student SQL and execute arguments preserved; connection is supplied by the web app.</span>
+<span class="context"> </span>
+<span class="removed">-</span>
+<span class="removed">-# Change these to your own MySQL login</span>
+<span class="removed">-MYSQL_USER = &quot;admin&quot;</span>
+<span class="removed">-MYSQL_PASSWORD = &quot;[REDACTED ORIGINAL PASSWORD]&quot;</span>
+<span class="removed">-</span>
+<span class="removed">-mysql_conn = mysql.connector.connect(</span>
+<span class="removed">-    host=&quot;localhost&quot;,</span>
+<span class="removed">-    user=MYSQL_USER,</span>
+<span class="removed">-    password=MYSQL_PASSWORD,</span>
+<span class="removed">-    database=&quot;scent_db&quot;</span>
+<span class="removed">-)</span>
+<span class="removed">-</span>
+<span class="removed">-def get_gross_revenue():</span>
+<span class="removed">-    cursor = mysql_conn.cursor(dictionary=True)</span>
+<span class="added">+def get_gross_revenue(connection):</span>
+<span class="added">+    cursor = connection.cursor(dictionary=True)</span>
+<span class="context">     sql = &quot;&quot;&quot;SELECT SUM(Fragrance.Price) AS TotalRevenue</span>
+<span class="context">       From Purchase_Record Inner Join Fragrance ON</span>
+<span class="context">         Purchase_Record.Fragrance_ID = Fragrance.Fragrance_ID;&quot;&quot;&quot;</span>
+<span class="hunk">@@ -22,11 +10,8 @@</span>
+<span class="context">     cursor.close()</span>
+<span class="context">     return revenue</span>
+<span class="context"> </span>
+<span class="removed">-def get_store():</span>
+<span class="removed">-    return input(&quot;City: &quot;)</span>
+<span class="removed">-</span>
+<span class="removed">-def get_specific_revenue(user_input=get_store()):</span>
+<span class="removed">-    cursor = mysql_conn.cursor(dictionary=True)</span>
+<span class="added">+def get_specific_revenue(connection, user_input):</span>
+<span class="added">+    cursor = connection.cursor(dictionary=True)</span>
+<span class="context">     sql = &quot;&quot;&quot;SELECT SUM(Fragrance.Price) AS TotalRevenue</span>
+<span class="context">         From Purchase_Record Inner Join Fragrance ON</span>
+<span class="context">         Purchase_Record.Fragrance_ID = Fragrance.Fragrance_ID</span>
+<span class="hunk">@@ -38,13 +23,3 @@</span>
+<span class="context">     revenue = cursor.fetchone()</span>
+<span class="context">     cursor.close()</span>
+<span class="context">     return revenue</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-def normalize_revenue_from_sql(revenue_dictionary):</span>
+<span class="removed">-    total_revenue = revenue_dictionary[&quot;TotalRevenue&quot;]</span>
+<span class="removed">-    return float(total_revenue)</span>
+<span class="removed">-</span>
+<span class="removed">-print(f&quot;Gross Revenue: {normalize_revenue_from_sql(get_gross_revenue()):.2f}&quot;)</span>
+<span class="removed">-print(f&quot;Specific Revenue: {normalize_revenue_from_sql(get_specific_revenue()):.2f}&quot;)</span>
+<span class="removed">-</span>
+<span class="removed">-mysql_conn.close()</span></pre></section><section id="discount"><p class="kicker">ADAPTED FILE</p><h2>discount.py</h2><p>Expose the existing older-purchase query as a callable report with an explicit cutoff date.</p><p class="metrics">3 added lines · 51 removed lines · whitespace included</p><div class="table-wrap"><table><thead><tr><th>Original interface</th><th>Adapted interface</th><th>Source line locations</th></tr></thead><tbody><tr><td><code>get_users_with_discount(date_delta=get_discount_date())</code></td><td><code>get_users_with_discount(connection, date_delta)</code></td><td>Original 34–48; adapted 3–17</td></tr></tbody></table></div><h3>Complete change explanation</h3><ol><li><strong>Removed module imports and connection setup.</strong> Removed mysql.connector and the date/timedelta imports, hardcoded admin credentials, and mysql.connector.connect(...). The new service owns the connection and imports the date utilities it uses.</li><li><strong>Removed get_gross_revenue().</strong> The discount script contained a second gross-revenue function that its bottom-of-file workflow did not call. It was removed from this adapted module. The equivalent report remains available through revenue.py. This deletes a duplicate SQL-bearing function; it does not edit the SQL of any retained function.</li><li><strong>Removed get_discount_date().</strong> The same default rule, today minus 30 days, is now computed by Service.discounts(...) when no explicit cutoff is passed. The browser report normally supplies a date from its date field.</li><li><strong>Changed get_users_with_discount(...).</strong> Replaced date_delta=get_discount_date() with required arguments connection, date_delta, and switched cursor creation to the supplied connection. The SQL, execute(sql, (date_delta,)), fetchall(), cursor.close(), and return users remain unchanged.</li><li><strong>Removed normalize_users_with_discount_data(...).</strong> This helper printed a promotional message for each result row; it did not actually email anyone or generate a discount code. The website now displays matching purchase rows in a table. It does not claim that each purchase date is the customer&#x27;s latest purchase.</li><li><strong>Removed startup execution and global close.</strong> Removed the top-level query/formatter call and mysql_conn.close(). Importing this file no longer connects, runs a report, or prints messages. The service closes the per-operation connection.</li></ol><p class="verification"><strong>Preserved database work:</strong> The retained discount SQL and (date_delta,) parameter tuple match exactly. It still selects purchase rows older than the cutoff for fragrances currently priced above 200; it does not compute each customer&#x27;s most recent purchase.</p><h3>Full unified diff</h3><pre class="diff"><span class="file">--- original/discount(1).py</span>
+<span class="file">+++ adapted/student_code/discount.py</span>
+<span class="hunk">@@ -1,38 +1,7 @@</span>
+<span class="removed">-import mysql.connector</span>
+<span class="added">+# Student SQL and execute arguments preserved; connection is supplied by the web app.</span>
+<span class="context"> </span>
+<span class="removed">-from datetime import date, timedelta</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-# Change these to your own MySQL login</span>
+<span class="removed">-MYSQL_USER = &quot;admin&quot;</span>
+<span class="removed">-MYSQL_PASSWORD = &quot;[REDACTED ORIGINAL PASSWORD]&quot;</span>
+<span class="removed">-</span>
+<span class="removed">-mysql_conn = mysql.connector.connect(</span>
+<span class="removed">-    host=&quot;localhost&quot;,</span>
+<span class="removed">-    user=MYSQL_USER,</span>
+<span class="removed">-    password=MYSQL_PASSWORD,</span>
+<span class="removed">-    database=&quot;scent_db&quot;</span>
+<span class="removed">-)</span>
+<span class="removed">-</span>
+<span class="removed">-def get_gross_revenue():</span>
+<span class="removed">-    cursor = mysql_conn.cursor(dictionary=True)</span>
+<span class="removed">-    sql = &quot;&quot;&quot;SELECT SUM(Fragrance.Price) AS TotalRevenue</span>
+<span class="removed">-      From Purchase_Record Inner Join Fragrance ON</span>
+<span class="removed">-        Purchase_Record.Fragrance_ID = Fragrance.Fragrance_ID;&quot;&quot;&quot;</span>
+<span class="removed">-    cursor.execute(sql)</span>
+<span class="removed">-    revenue = cursor.fetchone()</span>
+<span class="removed">-    cursor.close()</span>
+<span class="removed">-    return revenue</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-def get_discount_date():</span>
+<span class="removed">-    today = date.today()</span>
+<span class="removed">-    discount_date = today - timedelta(days=30)</span>
+<span class="removed">-    return discount_date</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-def get_users_with_discount(date_delta=get_discount_date()):</span>
+<span class="removed">-    cursor = mysql_conn.cursor(dictionary=True)</span>
+<span class="added">+def get_users_with_discount(connection, date_delta):</span>
+<span class="added">+    cursor = connection.cursor(dictionary=True)</span>
+<span class="context">     sql = &quot;&quot;&quot;</span>
+<span class="context"> SELECT Concat(Person.First_Name, &#x27; &#x27;, Person.Last_Name) AS Name, Fragrance.Price, Purchase_Date</span>
+<span class="context"> From Purchase_Record</span>
+<span class="hunk">@@ -46,20 +15,3 @@</span>
+<span class="context">     users = cursor.fetchall()</span>
+<span class="context">     cursor.close()</span>
+<span class="context">     return users</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-def normalize_users_with_discount_data(data_dictionary):</span>
+<span class="removed">-    for row in data_dictionary:</span>
+<span class="removed">-        name = row[&quot;Name&quot;]</span>
+<span class="removed">-        date = row[&quot;Purchase_Date&quot;]</span>
+<span class="removed">-</span>
+<span class="removed">-        print(f&quot;&quot;&quot;</span>
+<span class="removed">-Hi {name}!</span>
+<span class="removed">-We like you. You haven&#x27;t purchased since {date}.</span>
+<span class="removed">-Here&#x27;s a discount code for you!</span>
+<span class="removed">-        &quot;&quot;&quot;)</span>
+<span class="removed">-</span>
+<span class="removed">-normalize_users_with_discount_data(get_users_with_discount())</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-mysql_conn.close()</span></pre></section><section id="verification"><p class="kicker">REPRODUCIBLE SOURCE CHECKS</p><h2>What was verified</h2><div class="table-wrap"><table><thead><tr><th>Module</th><th>Retained function</th><th>SQL string values</th><th>execute call expressions</th><th>Function body</th></tr></thead><tbody><tr><td>searches.py</td><td><code>get_fragrances_with_natural_status</code></td><td>Exact match</td><td>Exact match</td><td>Only connection variable changed</td></tr><tr><td>searches.py</td><td><code>get_fragrances_with_note</code></td><td>Exact match</td><td>Exact match</td><td>Only connection variable changed</td></tr><tr><td>revenue.py</td><td><code>get_gross_revenue</code></td><td>Exact match</td><td>Exact match</td><td>Only connection variable changed</td></tr><tr><td>revenue.py</td><td><code>get_specific_revenue</code></td><td>Exact match</td><td>Exact match</td><td>Only connection variable changed</td></tr><tr><td>discount.py</td><td><code>get_users_with_discount</code></td><td>Exact match</td><td>Exact match</td><td>Only connection variable changed</td></tr></tbody></table></div><p>The body check compares Python syntax trees after normalizing only the original <code>mysql_conn</code> name to <code>connection</code>. It ignores source location metadata, not executable statements. The SQL check compares the literal string values, including their whitespace. The execute check compares the complete existing call expressions, including the parameter tuples.</p><p>These are static source-preservation checks. They do not prove the SQL runs successfully against your live server, or that the new web permissions match the old account permissions.</p><p><code>customers.py</code> and <code>transactions.py</code> were separately verified as byte-for-byte copies of their uploaded originals. They are outside the adapted-file diffs. No transaction-body or SQL-grant changes are hidden in this report.</p><h3>Source file hashes</h3><p class="note">SHA-256 values below refer to the original unmasked source bytes and the exact adapted ZIP member. Report masking does not change these hashes.</p><div class="table-wrap"><table><thead><tr><th>Original filename</th><th>Original SHA-256</th><th>Adapted SHA-256</th></tr></thead><tbody><tr><td>searches(1).py</td><td><code class="hash">2e7eb75058b24750d23621d2079407cf647ac01625e4035622c51e4f4f967928</code></td><td><code class="hash">e9f669b2ffdd9c70de75fd60745a82204370c03d04ce95d1c922d5f83cbeeaf6</code></td></tr><tr><td>revenue(1).py</td><td><code class="hash">5a9fb57b81709215c5c07322f0f7b06a62bcb9b37e6a64d0ed20153a1935fe03</code></td><td><code class="hash">cb9043efb5fd4886a2755b37d84dda8d125cc38eb5501d13a78ca3e29ce677b6</code></td></tr><tr><td>discount(1).py</td><td><code class="hash">00551c1db945e569c40a6b4e80cbf4a25640c97a5e6d625a9ca1fa2dd081e735</code></td><td><code class="hash">37ba39e29bd6ac09b68851ca3fd02c3715f1fe53436cb9263fede5a9ba771bbc</code></td></tr></tbody></table></div><h3>Accurate explanation for a code review</h3><p>The team supplied the original database functions. AI adapted three scripts for a web interface by moving connection ownership to a service layer, passing form values explicitly, and removing command-line presentation and import-time execution. The retained SQL statements, SQL parameter tuples, fetching logic, and returned database values were preserved. The registration and purchase-transaction files were copied unchanged. The new web interface has the additional display and connection-account behavior documented above.</p><p>Review this attribution against your team’s actual work before using it in a submission. It describes this integration, not the authorship of any earlier project work.</p></section><section id="feature-additions"><p class="kicker">FEATURE ADDENDUM</p><h2>Stock location top sellers and Add Fragrance</h2><p>The original three adaptations documented above remain unchanged. This addition saves the two newly supplied query functions in reports.py, adds the corresponding website reports, and supplies the Add Fragrance interface without writing its graded database implementation.</p><div class="table-wrap"><table><thead><tr><th>File</th><th>Change and ownership</th></tr></thead><tbody><tr><td>student_code/reports.py</td><td>The user's stock_location and top_seller functions are copied unchanged. SQL strings and execute argument expressions were verified against the pasted source.</td></tr><tr><td>student_code/fragrances.py</td><td>AI-written interface scaffold only. ADD_FRAGRANCE_READY remains False. No INSERT, SQL binding, commit, rollback, or grant statements were written.</td></tr><tr><td>service.py</td><td>Calls the two supplied functions, provides existing Brand data to the form, and selects the customer/admin connection only for Add Fragrance.</td></tr><tr><td>app.py</td><td>Adds routes, validation, role-profile setup, and specific error messages. A verified staff session selects the admin profile; browser role fields are ignored.</td></tr><tr><td>HTML CSS and JavaScript</td><td>Adds four keyboard-accessible collection tabs, stock/sales tables, and the fragrance form.</td></tr><tr><td>SQL files</td><td>The existing setup/account files remain unchanged. The supplied customer/admin account scripts were copied unchanged into sql/ for reference.</td></tr></tbody></table></div><h3>Account behavior</h3><p>All existing features and the new stock/sales reports still use the base application account. Add Fragrance alone uses the optional customer or admin profile based on the server's staff session. Both visitors and staff may submit; only a MySQL permission exception from the customer insertion attempt produces the requested refusal message. No function/configuration/preview failure is presented as a real MySQL denial.</p><p class="callout">The Add Fragrance INSERT function must still be written by the team. The full field mapping, return/error contract, account setup, and live demo instructions are in docs/ADD_FRAGRANCE_TEAM_GUIDE.md inside the website ZIP. The separate UPDATE feature and individual customer authentication/history also remain team work.</p><h3>New supplied module copied unchanged</h3><pre class="diff">import mysql.connector
+
+
+def stock_location(connection, fragrance_name):
+    cursor = connection.cursor(dictionary=True)
+    sql = &quot;&quot;&quot;
+    SELECT Store.City, Store.Building, Store.Street, Store_Inventory.Num_Bottles
+    FROM Fragrance
+      JOIN Store_Inventory
+        ON Fragrance.Fragrance_ID = Store_Inventory.Fragrance_ID
+      JOIN Store
+        ON Store_Inventory.Store_ID = Store.Store_ID
+    WHERE Fragrance.Fragrance_Name = %s
+    AND Store_Inventory.Num_Bottles &gt; 0
+    ORDER BY Store_Inventory.Num_Bottles DESC;
+    &quot;&quot;&quot;
+    cursor.execute(sql, (fragrance_name,))
+    rows = cursor.fetchall()
+    cursor.close()
+    return rows
+
+
+def top_seller(connection):
+    cursor = connection.cursor(dictionary=True)
+    sql = &quot;&quot;&quot;
+    SELECT Fragrance.Fragrance_Name,
+           COUNT(*) AS Total_Purchases
+    FROM Purchase_Record
+      JOIN Fragrance
+        ON Purchase_Record.Fragrance_ID = Fragrance.Fragrance_ID
+    GROUP BY Fragrance.Fragrance_ID, Fragrance.Fragrance_Name
+    ORDER BY Total_Purchases DESC
+    LIMIT 5;
+    &quot;&quot;&quot;
+    cursor.execute(sql)
+    rows = cursor.fetchall()
+    cursor.close()
+    return rows
+</pre><h3>New interface scaffold</h3><pre class="diff">&quot;&quot;&quot;Interface scaffold only. The team must write the graded database implementation.
+
+Read docs/ADD_FRAGRANCE_TEAM_GUIDE.md for the input/output contract.
+No INSERT, SQL parameter binding, commit, rollback, or grants are provided here.
+&quot;&quot;&quot;
+
+ADD_FRAGRANCE_READY = False
+
+
+def add_fragrance(connection, fragrance_name, strength, size, price, brand_id,
+                  perfumer_id=None, notes=None):
+    &quot;&quot;&quot;Return the new positive integer Fragrance_ID after successfully saving.
+
+    The caller supplies a connection already authenticated as the appropriate
+    MySQL account. Do not create a different connection or select an account
+    here. Preserve the original MySQL exception on failure so the web layer
+    can distinguish permission refusal from invalid data.
+
+    Set ADD_FRAGRANCE_READY to True after implementing and testing this function,
+    then restart the Python web server.
+    &quot;&quot;&quot;
+    raise NotImplementedError(&#x27;The team has not implemented fragrance insertion yet.&#x27;)
+</pre><h3>Verification</h3><p>34 HTTP/service tests passed using service and connection doubles, including customer/admin profile selection, forged-role rejection, exact customer-refusal text, and differentiated data errors. Python compilation and JavaScript syntax checks passed. Live MySQL and browser visual checks remain pending; the workspace could not launch Chromium. Simulated exceptions do not satisfy the live database-refusal demonstration.</p></section><section id="password-compatibility"><p class="kicker">COMPATIBILITY CORRECTION · NOVEMBER 9, 2026</p><h2>Team-desk password hashing</h2><p>The reported AttributeError occurs when the loaded hashlib module lacks scrypt. The original app.py used that function to hash the temporary team-desk password at startup and to verify login attempts. This is separate from MySQL authentication.</p><h3>Exact scope and justification</h3><ul><li><code>app.py</code>: replace scrypt with PBKDF2-HMAC-SHA256 using 600,000 iterations. Retain the existing 16-byte random salt and hmac.compare_digest comparison. Both password creation and verification call the same updated function.</li><li><code>app.py</code>: check that PBKDF2 is available before enabling team-desk login, and turn its missing-function error into an actionable command-line message. A server with staff login disabled can still start.</li><li><code>tests/test_web.py</code>: simulate hashlib with PBKDF2 but no scrypt; verify server startup, rejection of a wrong password, acceptance of the correct password, and the resulting staff session. A second test covers missing PBKDF2 and the staff-disabled case.</li><li><code>README.md</code>, <code>docs/FEATURE_ADDITIONS.md</code>, and this report: describe the correction and current verification.</li></ul><p>No database adapter, student module, SQL file, SQL statement, grant, or transaction was changed for this correction. The existing student files were compared byte-for-byte with the preceding download. The team-desk digest exists only in the running process, so no stored hash migration is necessary.</p><h3>Complete functional diff from the preceding download</h3><pre class="diff">--- before/app.py
++++ after/app.py
+@@ -69,8 +69,17 @@
+ def make_server(service, port=8000, staff_password=None):
+     sessions, lock = {}, threading.Lock()
+     password_salt = secrets.token_bytes(16)
++    if staff_password and not callable(getattr(hashlib, &#x27;pbkdf2_hmac&#x27;, None)):
++        raise RuntimeError(
++            &#x27;Team-desk login requires hashlib.pbkdf2_hmac. Use a Python 3.10+ &#x27;
++            &#x27;installation built with OpenSSL, and check that no local hashlib.py &#x27;
++            &#x27;file or hashlib folder is hiding the standard-library module.&#x27;
++        )
++
+     def password_digest(password):
+-        return hashlib.scrypt(password.encode(), salt=password_salt, n=16384, r=8, p=1)
++        # Some Python/OpenSSL builds do not expose scrypt. PBKDF2 avoids that
++        # dependency while keeping a salted, deliberately expensive password hash.
++        return hashlib.pbkdf2_hmac(&#x27;sha256&#x27;, password.encode(&#x27;utf-8&#x27;), password_salt, 600_000)
+     staff_digest = password_digest(staff_password) if staff_password else None
+ 
+     class Handler(BaseHTTPRequestHandler):
+@@ -324,7 +333,10 @@
+         service = Service(config, preview=args.preview, customer_config=customer_config, admin_config=admin_config)
+     except ValueError as exc:
+         parser.error(str(exc))
+-    server = make_server(service, args.port, staff_password)
++    try:
++        server = make_server(service, args.port, staff_password)
++    except RuntimeError as exc:
++        parser.error(str(exc))
+     print(&#x27;SILLAGE: http://127.0.0.1:%d&#x27; % server.server_port)
+     print(&#x27;Mode:&#x27;, &#x27;catalogue preview; no database writes&#x27; if args.preview else &#x27;live MySQL&#x27;)
+     print(&#x27;This local class demo uses Python HTTPServer. Stop with Ctrl+C.&#x27;)
+
+--- before/tests/test_web.py
++++ after/tests/test_web.py
+@@ -1,8 +1,11 @@
+ &quot;&quot;&quot;HTTP integration checks using a service double, not a MySQL database.&quot;&quot;&quot;
+ import json
++import hashlib
+ import threading
+ import unittest
+ from decimal import Decimal
++from types import SimpleNamespace
++from unittest.mock import patch
+ from http.cookiejar import CookieJar
+ from urllib.error import HTTPError
+ from urllib.request import Request, build_opener, HTTPCookieProcessor
+@@ -260,5 +263,47 @@
+         self.assertEqual(self.service.calls, [])
+ 
+ 
++class PasswordCompatibilityTests(unittest.TestCase):
++    def test_startup_and_login_without_hashlib_scrypt(self):
++        # Model a Python build with PBKDF2 available but no scrypt attribute.
++        module = SimpleNamespace(pbkdf2_hmac=hashlib.pbkdf2_hmac)
++        with patch(&#x27;app.hashlib&#x27;, module):
++            server = make_server(FakeService(), 0, &#x27;correct-team-password&#x27;)
++            thread = threading.Thread(target=server.serve_forever, kwargs={&#x27;poll_interval&#x27;: .02}, daemon=True)
++            thread.start()
++            client = build_opener(HTTPCookieProcessor(CookieJar()))
++            base = &#x27;http://127.0.0.1:&#x27; + str(server.server_port)
++            try:
++                with client.open(base + &#x27;/api/status&#x27;) as response:
++                    status = json.loads(response.read())
++                self.assertTrue(status[&#x27;staff_enabled&#x27;])
++                for password, expected in [(&#x27;wrong-password&#x27;, 401), (&#x27;correct-team-password&#x27;, 200)]:
++                    request = Request(base + &#x27;/api/staff/login&#x27;, data=json.dumps({&#x27;password&#x27;: password}).encode(),
++                                      headers={&#x27;Content-Type&#x27;:&#x27;application/json&#x27;,&#x27;X-CSRF-Token&#x27;:status[&#x27;csrf&#x27;]})
++                    try:
++                        response = client.open(request)
++                    except HTTPError as exc:
++                        response = exc
++                    with response:
++                        self.assertEqual(response.status, expected)
++                        payload = json.loads(response.read())
++                    if expected == 200:
++                        self.assertTrue(payload[&#x27;staff&#x27;])
++                with client.open(base + &#x27;/api/status&#x27;) as response:
++                    self.assertTrue(json.loads(response.read())[&#x27;staff&#x27;])
++            finally:
++                server.shutdown()
++                server.server_close()
++                thread.join()
++
++    def test_missing_pbkdf2_has_actionable_startup_error(self):
++        with patch(&#x27;app.hashlib&#x27;, SimpleNamespace()):
++            with self.assertRaisesRegex(RuntimeError, &#x27;hashlib.pbkdf2_hmac&#x27;):
++                make_server(FakeService(), 0, &#x27;team-password&#x27;)
++            # Browsing without the staff feature does not need a password KDF.
++            server = make_server(FakeService(), 0)
++            server.server_close()
++
++
+ if __name__ == &#x27;__main__&#x27;:
+     unittest.main()
+</pre><h3>Validation and application</h3><p>All 36 HTTP/service tests passed, including the two new compatibility tests. Python compilation passed. Tests use service and connection doubles; no live MySQL execution was performed. The earlier 34-test result in the previous addendum records the earlier version.</p><p>Stop the running server, replace only app.py in your existing project, and restart with your usual command. Preserve locally completed student work. If PBKDF2 is also missing, check for a local hashlib.py or hashlib folder masking the standard library and use a supported Python build with OpenSSL.</p><p>Reference: <a href="https://docs.python.org/3/library/hashlib.html#key-derivation">Python hashlib key-derivation documentation</a>.</p></section><section id="inventory-additions"><p class="kicker">RESTOCK AND CATALOGUE ADDITIONS · NOVEMBER 13, 2026</p><h2>Restock connected; insert corrections identified</h2><p>Restock is connected unchanged through Team Desk and supplies the standalone UPDATE action. Add Brand now has a form, validation, a staff-only route, and admin connection selection. Add Fragrance retains its existing form and genuine database-refusal handling. The latest supplied insertion script still has blocking defects, so both insertion readiness flags remain false.</p><p>The user's later replacement insert_fragrance removes the original hard-coded brand, missing parameter tuple, and invalid fetchall loop. At that review, it still put brand in the price position and price in the brand-name lookup, evaluated get_brand_id without its required argument, and omitted saving and the returned ID. The final tuple correction below supersedes the parameter-order finding. The initial and revised versions are preserved separately under docs/.</p><div class="table-wrap"><table><thead><tr><th>File</th><th>Change and database scope</th></tr></thead><tbody><tr><td>student_code/inventory.py</td><td>New file; the user's restock function is copied unchanged, including SQL, execute tuple, rowcount branch, commit, close, and return strings.</td></tr><tr><td>student_code/brands.py</td><td>New interface scaffold only; no INSERT, parameter binding, commit, or rollback. Team implementation remains pending.</td></tr><tr><td>service.py</td><td>New Restock adapter using the base connection; new brand adapter using the configured admin connection. No newly authored SQL or transaction logic.</td></tr><tr><td>app.py</td><td>Staff-only Restock and Brand routes; input validation, operation-specific errors, and updated account prompt text. No direct database access.</td></tr><tr><td>templates/index.html; static/app.js</td><td>Add Brand tab, Team Desk Restock form and shortcuts, role-sensitive controls, existing-country selection, stock display, and catalogue refresh.</td></tr><tr><td>tests/test_web.py; tests/test_service.py</td><td>15 additional tests bring the suite to 51. They cover authorization, CSRF, invalid quantities, missing rows, parameter mapping, profile choice, cleanup, and errors using doubles.</td></tr><tr><td>Docs and preview</td><td>README, account mapping, requirement status, student guidance, source verification, full functional patch, and preview updated. All existing student modules and all SQL files remain byte-identical to the previous download.</td></tr></tbody></table></div><p class="callout">Restock does not insert a new inventory row. Add Brand and Add Fragrance cannot save until the team corrects their database functions. See Catalog_Script_Review.html for the current issue checklist, contracts, account routing, and local demonstration.</p><h3>Exact functional diff</h3><details><summary>app.py</summary><pre class="diff">--- before/app.py
++++ after/app.py
+@@ -140,10 +140,13 @@
+             except Problem as exc:
+                 self.send(exc.status, {&#x27;error&#x27;: exc.message})
+             except NotImplementedError:
+-                self.send(501, {&#x27;error&#x27;: &#x27;Adding fragrances is not available yet.&#x27;})
++                feature = &#x27;brands&#x27; if urlsplit(self.path).path == &#x27;/api/brands&#x27; else &#x27;fragrances&#x27;
++                self.send(501, {&#x27;error&#x27;: &#x27;Adding &#x27; + feature + &#x27; is not available yet.&#x27;})
+             except Exception as exc:
+                 errno = getattr(exc, &#x27;errno&#x27;, None)
+                 adding = urlsplit(self.path).path == &#x27;/api/fragrances&#x27; and method == &#x27;POST&#x27;
++                adding_brand = urlsplit(self.path).path == &#x27;/api/brands&#x27; and method == &#x27;POST&#x27;
++                restocking = urlsplit(self.path).path == &#x27;/api/restock&#x27; and method == &#x27;POST&#x27;
+                 if adding and not self.state.get(&#x27;staff&#x27;) and errno in (1142, 1143):
+                     message = ADD_FRAGRANCE_REFUSAL
+                     status = 403
+@@ -155,6 +158,18 @@
+                     status = 422
+                 elif adding and errno in (1048, 1264, 1366, 1406, 3819):
+                     message = &#x27;One or more fragrance values do not meet the database requirements.&#x27;
++                    status = 422
++                elif adding_brand and errno == 1062:
++                    message = &#x27;A brand with that name already exists.&#x27;
++                    status = 409
++                elif adding_brand and errno == 1452:
++                    message = &#x27;Choose an existing country for this brand.&#x27;
++                    status = 422
++                elif adding_brand and errno in (1048, 1264, 1366, 1406, 3819):
++                    message = &#x27;One or more brand values do not meet the database requirements.&#x27;
++                    status = 422
++                elif restocking and errno in (1264, 1690, 3819):
++                    message = &#x27;The resulting bottle count exceeds the inventory limits. Check the current stock and quantity.&#x27;
+                     status = 422
+                 elif errno in (1044, 1142, 1143, 1227, 1370):
+                     message = &#x27;MySQL refused this operation for the configured database account.&#x27;
+@@ -274,6 +289,18 @@
+                 customer, fragrance, store = [positive_id(data, key) for key in (&#x27;customer_id&#x27;, &#x27;fragrance_id&#x27;, &#x27;store_id&#x27;)]
+                 message = service.purchase(customer, fragrance, store)
+                 self.send(200 if message == &#x27;Purchase completed successfully.&#x27; else 422, {&#x27;message&#x27;: message})
++            elif path == &#x27;/api/restock&#x27;:
++                self.staff_only()
++                self.live_only()
++                store, fragrance, bottles = [positive_id(data, key) for key in (&#x27;store_id&#x27;, &#x27;fragrance_id&#x27;, &#x27;bottles&#x27;)]
++                message = service.restock(store, fragrance, bottles)
++                self.send(200 if message == &#x27;Restock completed.&#x27; else 422, {&#x27;message&#x27;: message})
++            elif path == &#x27;/api/brands&#x27;:
++                self.staff_only()
++                self.live_only()
++                values = {&#x27;name&#x27;: text_value(data, &#x27;name&#x27;, 60), &#x27;country_id&#x27;: positive_id(data, &#x27;country_id&#x27;)}
++                brand_id = service.add_brand(values)
++                self.send(201, {&#x27;message&#x27;: &#x27;Brand added successfully.&#x27;, &#x27;brand_id&#x27;: brand_id})
+             else:
+                 raise Problem(&#x27;Page not found.&#x27;, 404)
+ 
+@@ -290,7 +317,7 @@
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument(&#x27;--preview&#x27;, action=&#x27;store_true&#x27;, help=&#x27;Use catalogue snapshot; disable database features&#x27;)
+     parser.add_argument(&#x27;--staff&#x27;, action=&#x27;store_true&#x27;, help=&#x27;Prompt for a separate team-desk password&#x27;)
+-    parser.add_argument(&#x27;--fragrance-accounts&#x27;, action=&#x27;store_true&#x27;, help=&#x27;Configure the team-created customer/admin MySQL accounts for Add Fragrance&#x27;)
++    parser.add_argument(&#x27;--fragrance-accounts&#x27;, action=&#x27;store_true&#x27;, help=&#x27;Configure customer/admin MySQL accounts for Add Fragrance and Add Brand&#x27;)
+     parser.add_argument(&#x27;--port&#x27;, type=int, default=8000)
+     args = parser.parse_args()
+     config = None
+@@ -323,7 +350,7 @@
+                 password_key = &#x27;MYSQL_&#x27; + role + &#x27;_PASSWORD&#x27;
+                 profile[&#x27;password&#x27;] = os.environ.get(password_key)
+                 if profile[&#x27;password&#x27;] is None:
+-                    profile[&#x27;password&#x27;] = getpass.getpass(&#x27;MySQL password for &#x27; + profile[&#x27;user&#x27;] + &#x27; (Add Fragrance): &#x27;)
++                    profile[&#x27;password&#x27;] = getpass.getpass(&#x27;MySQL password for &#x27; + profile[&#x27;user&#x27;] + &#x27; (catalogue additions): &#x27;)
+                 profiles.append(profile)
+             customer_config, admin_config = profiles
+     staff_password = os.environ.get(&#x27;SILLAGE_STAFF_PASSWORD&#x27;)
+</pre></details><details><summary>service.py</summary><pre class="diff">--- before/service.py
++++ after/service.py
+@@ -96,6 +96,11 @@
+     def purchase(self, customer, fragrance, store):
+         return self._call(&#x27;transactions&#x27;, &#x27;record_purchase&#x27;, customer, fragrance, store)
+ 
++    def restock(self, store_id, fragrance_id, bottles):
++        # Same limited application profile as Record Purchase; the web route
++        # requires a staff session. The supplied function owns the commit.
++        return self._call(&#x27;inventory&#x27;, &#x27;restock&#x27;, store_id, fragrance_id, bottles)
++
+     def revenue(self, city=None):
+         if city:
+             return self._call(&#x27;revenue&#x27;, &#x27;get_specific_revenue&#x27;, city)
+@@ -109,6 +114,22 @@
+ 
+     def top_seller(self):
+         return self._call(&#x27;reports&#x27;, &#x27;top_seller&#x27;)
++
++    def add_brand(self, values):
++        &quot;&quot;&quot;Staff-only web route; use the configured admin profile without fallback.&quot;&quot;&quot;
++        module = importlib.import_module(&#x27;student_code.brands&#x27;)
++        if not module.ADD_BRAND_READY:
++            raise NotImplementedError(&#x27;Brand insertion has not been completed.&#x27;)
++        if not self.admin_config:
++            raise NotImplementedError(&#x27;Brand database account has not been configured.&#x27;)
++        connection = self._connect(self.admin_config)
++        try:
++            brand_id = module.add_brand(connection, **values)
++            if isinstance(brand_id, bool) or not isinstance(brand_id, int) or brand_id &lt;= 0:
++                raise RuntimeError(&#x27;The student function must return the saved Brand_ID.&#x27;)
++            return brand_id
++        finally:
++            connection.close()
+ 
+     def add_fragrance(self, values, *, is_staff):
+         &quot;&quot;&quot;Route one student-owned operation; never manufacture a permission denial.
+</pre></details><details><summary>student_code/inventory.py</summary><pre class="diff">--- before/student_code/inventory.py
++++ after/student_code/inventory.py
+@@ -0,0 +1,17 @@
++def restock(connection, store_id, fragrance_id, bottles):
++    cursor = connection.cursor()
++    sql = &quot;&quot;&quot;
++    UPDATE Store_Inventory
++    SET Num_Bottles = Num_Bottles + %s
++    WHERE Store_ID = %s
++    AND Fragrance_ID = %s;
++    &quot;&quot;&quot;
++    cursor.execute(sql, (bottles, store_id, fragrance_id))
++
++    if cursor.rowcount == 0:
++        cursor.close()
++        return &quot;Not a currently stocked item&quot;
++
++    connection.commit()
++    cursor.close()
++    return &quot;Restock completed.&quot;
+</pre></details><details><summary>student_code/brands.py</summary><pre class="diff">--- before/student_code/brands.py
++++ after/student_code/brands.py
+@@ -0,0 +1,20 @@
++&quot;&quot;&quot;Web interface for the team-owned brand insertion implementation.
++
++The supplied terminal script needs corrections before it can save a brand.
++Read docs/CATALOG_SCRIPT_REVIEW.md. No INSERT, SQL binding, or transaction
++implementation has been supplied by AI in this module.
++&quot;&quot;&quot;
++
++ADD_BRAND_READY = False
++
++
++def add_brand(connection, name, country_id):
++    &quot;&quot;&quot;Return the saved positive integer Brand_ID using the supplied connection.
++
++    name is a nonempty string of at most 60 characters.
++    country_id is a positive integer selected from the existing countries.
++    The team must implement SQL, parameter binding, saving, and cleanup here,
++    and propagate original MySQL exceptions. Do not prompt, connect, or change
++    database accounts inside this function. Enable the flag after testing.
++    &quot;&quot;&quot;
++    raise NotImplementedError(&#x27;The team has not completed brand insertion yet.&#x27;)
+</pre></details><details><summary>templates/index.html</summary><pre class="diff">--- before/templates/index.html
++++ after/templates/index.html
+@@ -42,6 +42,7 @@
+       &lt;button id=&quot;tab-stock&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot; aria-controls=&quot;stock-panel&quot; data-tab=&quot;stock&quot; tabindex=&quot;-1&quot;&gt;FIND IN STORES&lt;/button&gt;
+       &lt;button id=&quot;tab-top-sellers&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot; aria-controls=&quot;top-sellers-panel&quot; data-tab=&quot;top-sellers&quot; tabindex=&quot;-1&quot;&gt;TOP SELLERS&lt;/button&gt;
+       &lt;button id=&quot;tab-add-fragrance&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot; aria-controls=&quot;add-fragrance-panel&quot; data-tab=&quot;add-fragrance&quot; tabindex=&quot;-1&quot;&gt;ADD FRAGRANCE&lt;/button&gt;
++      &lt;button id=&quot;tab-add-brand&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot; aria-controls=&quot;add-brand-panel&quot; data-tab=&quot;add-brand&quot; tabindex=&quot;-1&quot;&gt;ADD BRAND&lt;/button&gt;
+     &lt;/div&gt;
+     &lt;div id=&quot;collection-panel&quot; role=&quot;tabpanel&quot; aria-labelledby=&quot;tab-collection&quot; tabindex=&quot;0&quot;&gt;
+     &lt;div class=&quot;catalog-tools&quot;&gt;
+@@ -55,6 +56,7 @@
+     &lt;div id=&quot;stock-panel&quot; class=&quot;feature-panel&quot; role=&quot;tabpanel&quot; aria-labelledby=&quot;tab-stock&quot; tabindex=&quot;0&quot; hidden&gt;&lt;/div&gt;
+     &lt;div id=&quot;top-sellers-panel&quot; class=&quot;feature-panel&quot; role=&quot;tabpanel&quot; aria-labelledby=&quot;tab-top-sellers&quot; tabindex=&quot;0&quot; hidden&gt;&lt;/div&gt;
+     &lt;div id=&quot;add-fragrance-panel&quot; class=&quot;feature-panel&quot; role=&quot;tabpanel&quot; aria-labelledby=&quot;tab-add-fragrance&quot; tabindex=&quot;0&quot; hidden&gt;&lt;/div&gt;
++    &lt;div id=&quot;add-brand-panel&quot; class=&quot;feature-panel&quot; role=&quot;tabpanel&quot; aria-labelledby=&quot;tab-add-brand&quot; tabindex=&quot;0&quot; hidden&gt;&lt;/div&gt;
+   &lt;/section&gt;
+ &lt;/main&gt;
+ &lt;footer class=&quot;site-footer&quot;&gt;&lt;a href=&quot;/&quot; class=&quot;wordmark&quot;&gt;SILLAGE&lt;/a&gt;&lt;p&gt;A study in scent. A project in connection.&lt;/p&gt;&lt;button class=&quot;text-button&quot; data-action=&quot;staff&quot;&gt;TEAM DESK ↗&lt;/button&gt;&lt;/footer&gt;
+</pre></details><details><summary>static/app.js</summary><pre class="diff">--- before/static/app.js
++++ after/static/app.js
+@@ -148,12 +148,13 @@
+     node.className=&#x27;panel-result result&#x27;+(error?&#x27; error&#x27;:&#x27;&#x27;);node.textContent=message;
+   }
+   function setTab(name, fragranceName=&#x27;&#x27;) {
+-    if(![&#x27;collection&#x27;,&#x27;stock&#x27;,&#x27;top-sellers&#x27;,&#x27;add-fragrance&#x27;].includes(name))return;
++    if(![&#x27;collection&#x27;,&#x27;stock&#x27;,&#x27;top-sellers&#x27;,&#x27;add-fragrance&#x27;,&#x27;add-brand&#x27;].includes(name))return;
+     $$(&#x27;.collection-tabs [role=tab]&#x27;).forEach(tab=&gt;{const active=tab.dataset.tab===name;tab.setAttribute(&#x27;aria-selected&#x27;,String(active));tab.tabIndex=active?0:-1;});
+     $$(&#x27;#catalog [role=tabpanel]&#x27;).forEach(panel=&gt;panel.hidden=panel.id!==name+&#x27;-panel&#x27;);
+     if(name===&#x27;stock&#x27;)stockPanel(fragranceName);
+     if(name===&#x27;top-sellers&#x27;)topSellersPanel();
+     if(name===&#x27;add-fragrance&#x27;)addFragrancePanel();
++    if(name===&#x27;add-brand&#x27;)addBrandPanel();
+   }
+   $(&#x27;.collection-tabs&#x27;).addEventListener(&#x27;keydown&#x27;,e=&gt;{
+     if(![&#x27;ArrowLeft&#x27;,&#x27;ArrowRight&#x27;,&#x27;Home&#x27;,&#x27;End&#x27;].includes(e.key))return;
+@@ -185,6 +186,26 @@
+   function updateRoleNote() {
+     const note=$(&#x27;#fragrance-session-note&#x27;);
+     if(note)note.textContent=state.staff?&#x27;You are signed in to the team desk.&#x27;:&#x27;Browsing with customer access. Team members can sign in through the team desk.&#x27;;
++    const brandNote=$(&#x27;#brand-session-note&#x27;),brandButton=$(&#x27;#add-brand-form button[type=submit]&#x27;),brandLogin=$(&#x27;#brand-login&#x27;);
++    if(brandNote)brandNote.textContent=state.preview?&#x27;Preview only. No brand will be saved here.&#x27;:state.staff?&#x27;You are signed in to the team desk.&#x27;:&#x27;Sign in to the team desk to add a brand.&#x27;;
++    if(brandButton)brandButton.disabled=!state.staff||state.preview;
++    if(brandLogin)brandLogin.hidden=state.staff||state.preview;
++  }
++  async function refreshCatalogue() {
++    const catalog=await api(&#x27;/api/catalog&#x27;);Object.assign(state,catalog);
++    const houses=$(&#x27;#add-fragrance-form select[name=brand_id]&#x27;);
++    if(houses){const selected=houses.value;houses.innerHTML=&#x27;&lt;option value=&quot;&quot;&gt;Choose a house&lt;/option&gt;&#x27;+state.brands.map(b=&gt;`&lt;option value=&quot;${b.id}&quot;&gt;${esc(b.name)}&lt;/option&gt;`).join(&#x27;&#x27;);houses.value=selected;}
++    renderCarousel();renderCatalog();
++  }
++  function addBrandPanel() {
++    const panel=$(&#x27;#add-brand-panel&#x27;);
++    panel.innerHTML=`&lt;div class=&quot;feature-heading&quot;&gt;&lt;p class=&quot;eyebrow&quot;&gt;A NEW HOUSE&lt;/p&gt;&lt;h3&gt;Add a brand.&lt;/h3&gt;&lt;p&gt;Create a house before adding its first fragrance.&lt;/p&gt;&lt;/div&gt;&lt;p class=&quot;feature-note&quot; id=&quot;brand-session-note&quot;&gt;&lt;/p&gt;&lt;button class=&quot;outline-button&quot; id=&quot;brand-login&quot; data-action=&quot;staff&quot;&gt;TEAM SIGN IN →&lt;/button&gt;&lt;form id=&quot;add-brand-form&quot; class=&quot;feature-form&quot;&gt;&lt;div class=&quot;form-row&quot;&gt;&lt;label class=&quot;field&quot;&gt;BRAND NAME&lt;input name=&quot;name&quot; maxlength=&quot;60&quot; required&gt;&lt;/label&gt;&lt;label class=&quot;field&quot;&gt;COUNTRY&lt;select name=&quot;country_id&quot; required&gt;&lt;option value=&quot;&quot;&gt;Choose a country&lt;/option&gt;${state.countries.map(c=&gt;`&lt;option value=&quot;${c.id}&quot;&gt;${esc(c.name)}&lt;/option&gt;`).join(&#x27;&#x27;)}&lt;/select&gt;&lt;/label&gt;&lt;/div&gt;&lt;p class=&quot;feature-note&quot;&gt;Choose an existing country. New country registration is not available here.&lt;/p&gt;&lt;button class=&quot;pill&quot; type=&quot;submit&quot;&gt;ADD BRAND →&lt;/button&gt;&lt;/form&gt;&lt;div class=&quot;panel-result result&quot; role=&quot;status&quot; hidden&gt;&lt;/div&gt;&lt;button class=&quot;text-button&quot; data-action=&quot;open-add-fragrance&quot;&gt;CONTINUE TO ADD FRAGRANCE →&lt;/button&gt;`;
++    updateRoleNote();
++    $(&#x27;#add-brand-form&#x27;).addEventListener(&#x27;submit&#x27;,async e=&gt;{
++      e.preventDefault();const button=$(&#x27;button[type=submit]&#x27;,e.target);button.disabled=true;let saved=false;
++      try{const r=await api(&#x27;/api/brands&#x27;,Object.fromEntries(new FormData(e.target)));saved=true;panelMessage(panel,`${r.message} Brand ID: ${r.brand_id}.`);e.target.reset();await refreshCatalogue();
++      }catch(err){panelMessage(panel,saved?&#x27;Brand saved, but the house list could not refresh. Reload before submitting again.&#x27;:err.message,!saved);}finally{button.disabled=!state.staff||state.preview;}
++    });
+   }
+   function addFragrancePanel() {
+     const panel=$(&#x27;#add-fragrance-panel&#x27;);
+@@ -198,11 +219,11 @@
+   }
+   function staff(){
+     if(state.staff){desk();return;}
+-    openModal(&#x27;staff-login&#x27;,`&lt;p class=&quot;eyebrow&quot;&gt;TEAM DESK&lt;/p&gt;&lt;h2 id=&quot;modal-title&quot;&gt;Behind the collection.&lt;/h2&gt;&lt;p&gt;Sign in to view reports and record purchases.&lt;/p&gt;&lt;form id=&quot;staff-login-form&quot;&gt;&lt;label class=&quot;field&quot;&gt;TEAM-DESK PASSWORD&lt;input name=&quot;password&quot; type=&quot;password&quot; autocomplete=&quot;current-password&quot; required maxlength=&quot;1024&quot;&gt;&lt;/label&gt;&lt;button class=&quot;pill&quot; type=&quot;submit&quot;&gt;SIGN IN →&lt;/button&gt;&lt;/form&gt;${resultBox}${!state.staff_enabled?&#x27;&lt;p class=&quot;form-note&quot;&gt;The team desk is disabled in this preview. Start the local Python app with --staff to enable it.&lt;/p&gt;&#x27;:&#x27;&#x27;}`);
++    openModal(&#x27;staff-login&#x27;,`&lt;p class=&quot;eyebrow&quot;&gt;TEAM DESK&lt;/p&gt;&lt;h2 id=&quot;modal-title&quot;&gt;Behind the collection.&lt;/h2&gt;&lt;p&gt;Sign in to view reports, record purchases, restock stores, and manage the collection.&lt;/p&gt;&lt;form id=&quot;staff-login-form&quot;&gt;&lt;label class=&quot;field&quot;&gt;TEAM-DESK PASSWORD&lt;input name=&quot;password&quot; type=&quot;password&quot; autocomplete=&quot;current-password&quot; required maxlength=&quot;1024&quot;&gt;&lt;/label&gt;&lt;button class=&quot;pill&quot; type=&quot;submit&quot;&gt;SIGN IN →&lt;/button&gt;&lt;/form&gt;${resultBox}${!state.staff_enabled?&#x27;&lt;p class=&quot;form-note&quot;&gt;The team desk is disabled in this preview. Start the local Python app with --staff to enable it.&lt;/p&gt;&#x27;:&#x27;&#x27;}`);
+     $(&#x27;#staff-login-form&#x27;).addEventListener(&#x27;submit&#x27;,async e=&gt;{e.preventDefault();const b=$(&#x27;button&#x27;,e.target);b.disabled=true;try{const r=await api(&#x27;/api/staff/login&#x27;,Object.fromEntries(new FormData(e.target)));state.csrf=r.csrf;state.staff=true;updateRoleNote();desk();}catch(err){result(err.message,true);}finally{b.disabled=false;}});
+   }
+   function desk(tab=&#x27;revenue&#x27;){
+-    openModal(&#x27;desk&#x27;,`&lt;p class=&quot;eyebrow&quot;&gt;TEAM DESK&lt;/p&gt;&lt;h2 id=&quot;modal-title&quot;&gt;Behind the collection.&lt;/h2&gt;&lt;div class=&quot;desk-tabs&quot;&gt;&lt;button data-action=&quot;desk-revenue&quot; class=&quot;${tab===&#x27;revenue&#x27;?&#x27;active&#x27;:&#x27;&#x27;}&quot;&gt;REVENUE&lt;/button&gt;&lt;button data-action=&quot;desk-discounts&quot; class=&quot;${tab===&#x27;discounts&#x27;?&#x27;active&#x27;:&#x27;&#x27;}&quot;&gt;PURCHASE FOLLOW-UP&lt;/button&gt;&lt;button data-action=&quot;desk-purchase&quot; class=&quot;${tab===&#x27;purchase&#x27;?&#x27;active&#x27;:&#x27;&#x27;}&quot;&gt;RECORD PURCHASE&lt;/button&gt;&lt;button data-action=&quot;open-add-fragrance&quot;&gt;ADD FRAGRANCE&lt;/button&gt;&lt;/div&gt;&lt;div id=&quot;desk-body&quot;&gt;&lt;/div&gt;&lt;div class=&quot;desk-foot&quot;&gt;&lt;button class=&quot;text-button&quot; data-action=&quot;staff-logout&quot;&gt;SIGN OUT ↗&lt;/button&gt;&lt;/div&gt;`,true);
++    openModal(&#x27;desk&#x27;,`&lt;p class=&quot;eyebrow&quot;&gt;TEAM DESK&lt;/p&gt;&lt;h2 id=&quot;modal-title&quot;&gt;Behind the collection.&lt;/h2&gt;&lt;div class=&quot;desk-tabs&quot;&gt;&lt;button data-action=&quot;desk-revenue&quot; class=&quot;${tab===&#x27;revenue&#x27;?&#x27;active&#x27;:&#x27;&#x27;}&quot;&gt;REVENUE&lt;/button&gt;&lt;button data-action=&quot;desk-discounts&quot; class=&quot;${tab===&#x27;discounts&#x27;?&#x27;active&#x27;:&#x27;&#x27;}&quot;&gt;PURCHASE FOLLOW-UP&lt;/button&gt;&lt;button data-action=&quot;desk-purchase&quot; class=&quot;${tab===&#x27;purchase&#x27;?&#x27;active&#x27;:&#x27;&#x27;}&quot;&gt;RECORD PURCHASE&lt;/button&gt;&lt;button data-action=&quot;desk-restock&quot; class=&quot;${tab===&#x27;restock&#x27;?&#x27;active&#x27;:&#x27;&#x27;}&quot;&gt;RESTOCK&lt;/button&gt;&lt;button data-action=&quot;open-add-fragrance&quot;&gt;ADD FRAGRANCE&lt;/button&gt;&lt;button data-action=&quot;open-add-brand&quot;&gt;ADD BRAND&lt;/button&gt;&lt;/div&gt;&lt;div id=&quot;desk-body&quot;&gt;&lt;/div&gt;&lt;div class=&quot;desk-foot&quot;&gt;&lt;button class=&quot;text-button&quot; data-action=&quot;staff-logout&quot;&gt;SIGN OUT ↗&lt;/button&gt;&lt;/div&gt;`,true);
+     const body=$(&#x27;#desk-body&#x27;);
+     if(tab===&#x27;revenue&#x27;){
+       const cities=[...new Set(state.stores.map(s=&gt;s.city))].sort();
+@@ -212,6 +233,16 @@
+       const before=new Date();before.setDate(before.getDate()-30);
+       body.innerHTML=`&lt;p&gt;Find purchase rows older than a chosen date for fragrances priced above $200. This report does not check each customer’s most recent purchase.&lt;/p&gt;&lt;form id=&quot;discount-form&quot;&gt;&lt;label class=&quot;field&quot;&gt;PURCHASED BEFORE&lt;input name=&quot;before&quot; type=&quot;date&quot; value=&quot;${before.toISOString().slice(0,10)}&quot; required&gt;&lt;/label&gt;&lt;button class=&quot;pill&quot; type=&quot;submit&quot;&gt;VIEW MATCHING PURCHASES →&lt;/button&gt;&lt;/form&gt;${resultBox}&lt;div id=&quot;discount-results&quot;&gt;&lt;/div&gt;`;
+       $(&#x27;#discount-form&#x27;).addEventListener(&#x27;submit&#x27;,async e=&gt;{e.preventDefault();const b=$(&#x27;button&#x27;,e.target);b.disabled=true;try{const r=await api(&#x27;/api/discounts?before=&#x27;+encodeURIComponent(new FormData(e.target).get(&#x27;before&#x27;)));result(`${r.rows.length} matching purchase rows.`);$(&#x27;#discount-results&#x27;).innerHTML=table(r.rows,[[&#x27;Name&#x27;,&#x27;Customer&#x27;],[&#x27;Price&#x27;,&#x27;Current price&#x27;,money],[&#x27;Purchase_Date&#x27;,&#x27;Purchase date&#x27;]]);}catch(err){result(err.message,true);}finally{b.disabled=false;}});
++    } else if(tab===&#x27;restock&#x27;) {
++      body.innerHTML=`&lt;p&gt;Add bottles to an existing store inventory record. A fragrance with zero bottles can be restocked; a missing store/fragrance record cannot be created here.&lt;/p&gt;&lt;form id=&quot;restock-form&quot;&gt;&lt;label class=&quot;field&quot;&gt;STORE&lt;select name=&quot;store_id&quot; required&gt;&lt;option value=&quot;&quot;&gt;Choose a store&lt;/option&gt;${state.stores.map(s=&gt;`&lt;option value=&quot;${s.id}&quot;&gt;${esc(s.city)} · ${esc(s.street)} · #${s.id}&lt;/option&gt;`).join(&#x27;&#x27;)}&lt;/select&gt;&lt;/label&gt;&lt;label class=&quot;field&quot;&gt;FRAGRANCE&lt;select name=&quot;fragrance_id&quot; required&gt;&lt;option value=&quot;&quot;&gt;Choose a fragrance&lt;/option&gt;${state.products.map(p=&gt;`&lt;option value=&quot;${p.id}&quot;&gt;${esc(p.house)} · ${esc(p.name)} · ${esc(p.strength)} · ${p.size} ml · #${p.id}&lt;/option&gt;`).join(&#x27;&#x27;)}&lt;/select&gt;&lt;/label&gt;&lt;label class=&quot;field&quot;&gt;BOTTLES TO ADD&lt;input name=&quot;bottles&quot; type=&quot;number&quot; min=&quot;1&quot; max=&quot;2147483647&quot; step=&quot;1&quot; required&gt;&lt;/label&gt;&lt;p class=&quot;form-note&quot; id=&quot;restock-inventory&quot;&gt;&lt;/p&gt;&lt;button class=&quot;pill&quot; type=&quot;submit&quot;&gt;RESTOCK →&lt;/button&gt;&lt;/form&gt;${resultBox}`;
++      const form=$(&#x27;#restock-form&#x27;);
++      const showStock=()=&gt;{const values=Object.fromEntries(new FormData(form));const product=state.products.find(p=&gt;p.id===Number(values.fragrance_id)),stock=product?.inventory.find(s=&gt;s.store_id===Number(values.store_id));$(&#x27;#restock-inventory&#x27;).textContent=!values.store_id||!values.fragrance_id?&#x27;Choose a store and a fragrance to view the recorded stock.&#x27;:stock?`${stock.bottles} bottles currently recorded in this store.`:&#x27;No inventory record exists for this store and fragrance. Restock will not create one.&#x27;;};
++      form.addEventListener(&#x27;change&#x27;,showStock);showStock();
++      form.addEventListener(&#x27;submit&#x27;,async e=&gt;{
++        e.preventDefault();const button=$(&#x27;button[type=submit]&#x27;,form);button.disabled=true;let saved=false;
++        try{const r=await api(&#x27;/api/restock&#x27;,Object.fromEntries(new FormData(form)));saved=true;result(r.message);form.elements.bottles.value=&#x27;&#x27;;await refreshCatalogue();if(form.isConnected)showStock();
++        }catch(err){if(form.isConnected)result(saved?&#x27;Restock saved, but the stock display could not refresh. Reload before submitting again.&#x27;:err.message,!saved);}finally{button.disabled=false;}
++      });
+     } else {
+       body.innerHTML=`&lt;p&gt;Record one bottle sold to an existing customer. A successful purchase reduces inventory and adds the purchase record together.&lt;/p&gt;&lt;form id=&quot;purchase-form&quot;&gt;&lt;label class=&quot;field&quot;&gt;CUSTOMER ID&lt;input name=&quot;customer_id&quot; type=&quot;number&quot; min=&quot;1&quot; max=&quot;2147483647&quot; step=&quot;1&quot; required&gt;&lt;/label&gt;&lt;label class=&quot;field&quot;&gt;FRAGRANCE&lt;select name=&quot;fragrance_id&quot; required&gt;${state.products.map(p=&gt;`&lt;option value=&quot;${p.id}&quot;&gt;${esc(p.name)} · ${p.size} ml · #${p.id}&lt;/option&gt;`).join(&#x27;&#x27;)}&lt;/select&gt;&lt;/label&gt;&lt;label class=&quot;field&quot;&gt;STORE&lt;select name=&quot;store_id&quot; required&gt;${state.stores.map(s=&gt;`&lt;option value=&quot;${s.id}&quot;&gt;${esc(s.city)} · ${esc(s.street)} · #${s.id}&lt;/option&gt;`).join(&#x27;&#x27;)}&lt;/select&gt;&lt;/label&gt;&lt;p class=&quot;form-note&quot; id=&quot;inventory-before&quot;&gt;&lt;/p&gt;&lt;button class=&quot;pill&quot; type=&quot;submit&quot;&gt;RECORD ONE-BOTTLE PURCHASE →&lt;/button&gt;&lt;/form&gt;${resultBox}`;
+       const showInventory=()=&gt;{const data=Object.fromEntries(new FormData($(&#x27;#purchase-form&#x27;)));const p=state.products.find(p=&gt;p.id===Number(data.fragrance_id)), stock=p?.inventory.find(s=&gt;s.store_id===Number(data.store_id));$(&#x27;#inventory-before&#x27;).textContent=stock?`${stock.bottles} bottles recorded in this store.`:&#x27;No inventory row is recorded for this fragrance and store.&#x27;;};
+@@ -233,6 +264,7 @@
+     else if(action===&#x27;detail&#x27;)details(id);else if(action===&#x27;sample&#x27;)sample(id);
+     else if(action===&#x27;stock-detail&#x27;){const p=state.products.find(p=&gt;p.id===id);if(p){modal.close();setTab(&#x27;stock&#x27;,p.name);$(&#x27;#catalog&#x27;).scrollIntoView();}}
+     else if(action===&#x27;open-add-fragrance&#x27;){modal.close();setTab(&#x27;add-fragrance&#x27;);$(&#x27;#catalog&#x27;).scrollIntoView();}
++    else if(action===&#x27;open-add-brand&#x27;){modal.close();setTab(&#x27;add-brand&#x27;);$(&#x27;#catalog&#x27;).scrollIntoView();}
+     else if(action===&#x27;shop&#x27;||action===&#x27;show-all&#x27;)showCatalog();else if(action===&#x27;explore&#x27;)showCatalog({mode:state.mode,group:state.group});
+     else if(action===&#x27;load-more&#x27;){state.limit+=24;renderCatalog();}
+     else if(action===&#x27;add-bag&#x27;){if(!state.bag.includes(id)){state.bag.push(id);updateBag();toast(&#x27;Added to your bag.&#x27;);}else toast(&#x27;This bottle is already in your bag.&#x27;);}
+</pre></details><details><summary>tests/test_web.py</summary><pre class="diff">--- before/tests/test_web.py
++++ after/tests/test_web.py
+@@ -24,6 +24,9 @@
+         self.calls = []
+         self.refuse = False
+         self.fragrance_error = None
++        self.brand_error = None
++        self.restock_error = None
++        self.restock_message = &#x27;Restock completed.&#x27;
+     def catalog(self):
+         return Service(preview=True).catalog()
+     def revenue(self, city=None):
+@@ -51,6 +54,16 @@
+     def top_seller(self):
+         self.calls.append((&#x27;top_seller&#x27;,))
+         return [{&#x27;Fragrance_Name&#x27;:&#x27;Example&#x27;,&#x27;Total_Purchases&#x27;:7}]
++    def restock(self, *args):
++        self.calls.append((&#x27;restock&#x27;, args))
++        if self.restock_error:
++            raise self.restock_error
++        return self.restock_message
++    def add_brand(self, values):
++        self.calls.append((&#x27;add_brand&#x27;, values))
++        if self.brand_error:
++            raise self.brand_error
++        return 6
+     def add_fragrance(self, values, *, is_staff):
+         self.calls.append((&#x27;add_fragrance&#x27;, is_staff, values))
+         if self.fragrance_error:
+@@ -262,6 +275,85 @@
+         self.assertNotEqual(data[&#x27;error&#x27;], ADD_FRAGRANCE_REFUSAL)
+         self.assertEqual(self.service.calls, [])
+ 
++    def test_restock_and_brand_require_verified_staff(self):
++        for path, values in [(&#x27;/api/restock&#x27;, {&#x27;store_id&#x27;:1,&#x27;fragrance_id&#x27;:2,&#x27;bottles&#x27;:3}),
++                             (&#x27;/api/brands&#x27;, {&#x27;name&#x27;:&#x27;New house&#x27;,&#x27;country_id&#x27;:1})]:
++            values.update(role=&#x27;admin&#x27;, is_staff=True)
++            self.assertEqual(self.call(path, values)[0], 403)
++        self.assertEqual(self.service.calls, [])
++
++    def test_restock_maps_integer_inputs_and_preserves_result(self):
++        self.login()
++        code, data = self.call(&#x27;/api/restock&#x27;, {&#x27;store_id&#x27;:&#x27;2&#x27;,&#x27;fragrance_id&#x27;:&#x27;7&#x27;,&#x27;bottles&#x27;:&#x27;12&#x27;})
++        self.assertEqual((code, data[&#x27;message&#x27;]), (200, &#x27;Restock completed.&#x27;))
++        self.assertEqual(self.service.calls, [(&#x27;restock&#x27;, (2,7,12))])
++
++    def test_missing_inventory_row_is_not_reported_as_success(self):
++        self.login()
++        self.service.restock_message = &#x27;Not a currently stocked item&#x27;
++        code, data = self.call(&#x27;/api/restock&#x27;, {&#x27;store_id&#x27;:2,&#x27;fragrance_id&#x27;:7,&#x27;bottles&#x27;:12})
++        self.assertEqual((code, data[&#x27;message&#x27;]), (422, &#x27;Not a currently stocked item&#x27;))
++
++    def test_invalid_restock_inputs_never_reach_database(self):
++        self.login()
++        for key in (&#x27;store_id&#x27;, &#x27;fragrance_id&#x27;, &#x27;bottles&#x27;):
++            for value in (0,-1,1.5,True,None,&#x27;2.0&#x27;,&#x27;2147483648&#x27;,&#x27;1; UPDATE X&#x27;):
++                with self.subTest(key=key,value=value):
++                    data = {&#x27;store_id&#x27;:1,&#x27;fragrance_id&#x27;:2,&#x27;bottles&#x27;:3, key:value}
++                    self.assertEqual(self.call(&#x27;/api/restock&#x27;, data)[0], 400)
++        self.assertEqual(self.service.calls, [])
++
++    def test_restock_permission_and_overflow_messages(self):
++        self.login()
++        for errno, status, phrase in [(1142,403,&#x27;MySQL refused&#x27;),(1264,422,&#x27;inventory limits&#x27;),(2003,503,&#x27;connection&#x27;)]:
++            with self.subTest(errno=errno):
++                error = Exception(&#x27;PRIVATE&#x27;)
++                error.errno = errno
++                self.service.restock_error = error
++                code, data = self.call(&#x27;/api/restock&#x27;, {&#x27;store_id&#x27;:1,&#x27;fragrance_id&#x27;:2,&#x27;bottles&#x27;:3})
++                self.assertEqual(code,status)
++                self.assertIn(phrase,data[&#x27;error&#x27;])
++                self.assertNotIn(&#x27;PRIVATE&#x27;,data[&#x27;error&#x27;])
++
++    def test_brand_accepts_name_and_country_id_only(self):
++        self.login()
++        code, data = self.call(&#x27;/api/brands&#x27;, {&#x27;name&#x27;:&quot;L&#x27;Example&quot;,&#x27;country_id&#x27;:&#x27;3&#x27;,&#x27;user&#x27;:&#x27;root&#x27;,&#x27;role&#x27;:&#x27;admin&#x27;})
++        self.assertEqual((code,data[&#x27;brand_id&#x27;]),(201,6))
++        self.assertEqual(self.service.calls,[(&#x27;add_brand&#x27;,{&#x27;name&#x27;:&quot;L&#x27;Example&quot;,&#x27;country_id&#x27;:3})])
++
++    def test_invalid_brand_values_are_not_sent_to_database(self):
++        self.login()
++        for changes in ({&#x27;name&#x27;:&#x27;&#x27;},{&#x27;name&#x27;:&#x27;x&#x27;*61},{&#x27;country_id&#x27;:&#x27;France&#x27;},{&#x27;country_id&#x27;:0},{&#x27;country_id&#x27;:True}):
++            self.assertEqual(self.call(&#x27;/api/brands&#x27;, {&#x27;name&#x27;:&#x27;Valid&#x27;,&#x27;country_id&#x27;:1,**changes})[0],400)
++        self.assertEqual(self.service.calls,[])
++
++    def test_brand_errors_are_specific_without_exposing_sql(self):
++        self.login()
++        for error, status, phrase in [(NotImplementedError(&#x27;pending&#x27;),501,&#x27;brands&#x27;),
++                                     (Refused(&#x27;PRIVATE&#x27;),403,&#x27;MySQL refused&#x27;)]:
++            self.service.brand_error=error
++            code,data=self.call(&#x27;/api/brands&#x27;,{&#x27;name&#x27;:&#x27;Valid&#x27;,&#x27;country_id&#x27;:1})
++            self.assertEqual(code,status)
++            self.assertIn(phrase,data[&#x27;error&#x27;])
++            self.assertNotIn(&#x27;PRIVATE&#x27;,data[&#x27;error&#x27;])
++        for errno, status, phrase in [(1062,409,&#x27;already exists&#x27;),(1452,422,&#x27;country&#x27;),(1406,422,&#x27;requirements&#x27;)]:
++            error=Exception(&#x27;PRIVATE&#x27;);error.errno=errno
++            self.service.brand_error=error
++            code,data=self.call(&#x27;/api/brands&#x27;,{&#x27;name&#x27;:&#x27;Valid&#x27;,&#x27;country_id&#x27;:1})
++            self.assertEqual(code,status)
++            self.assertIn(phrase,data[&#x27;error&#x27;])
++
++    def test_restock_and_brand_require_csrf_and_live_mode(self):
++        self.login()
++        forms=[(&#x27;/api/restock&#x27;,{&#x27;store_id&#x27;:1,&#x27;fragrance_id&#x27;:2,&#x27;bottles&#x27;:3}),
++               (&#x27;/api/brands&#x27;,{&#x27;name&#x27;:&#x27;Valid&#x27;,&#x27;country_id&#x27;:1})]
++        for path,values in forms:
++            self.assertEqual(self.call(path,values,csrf=False)[0],403)
++        self.service.preview=True
++        for path,values in forms:
++            self.assertEqual(self.call(path,values)[0],503)
++        self.assertEqual(self.service.calls,[])
++
+ 
+ class PasswordCompatibilityTests(unittest.TestCase):
+     def test_startup_and_login_without_hashlib_scrypt(self):
+</pre></details><details><summary>tests/test_service.py</summary><pre class="diff">--- before/tests/test_service.py
++++ after/tests/test_service.py
+@@ -75,6 +75,73 @@
+                 self.service.add_fragrance({}, is_staff=True)
+         self.connection.close.assert_called_once()
+ 
++    def test_restock_runs_supplied_function_and_closes_base_connection(self):
++        cursor = self.connection.cursor.return_value
++        cursor.rowcount = 1
++        self.assertEqual(self.service.restock(2,7,12),&#x27;Restock completed.&#x27;)
++        self.service._connect.assert_called_once_with()
++        # Verify the form&#x27;s store/fragrance/count order reaches the student&#x27;s
++        # existing execute tuple in the correct count/store/fragrance order.
++        self.assertEqual(cursor.execute.call_args.args[1],(12,2,7))
++        self.connection.commit.assert_called_once()
++        self.connection.rollback.assert_not_called()
++        cursor.close.assert_called_once()
++        self.connection.close.assert_called_once()
++
++    def test_restock_missing_row_does_not_commit(self):
++        self.connection.cursor.return_value.rowcount=0
++        self.assertEqual(self.service.restock(2,7,12),&#x27;Not a currently stocked item&#x27;)
++        self.connection.commit.assert_not_called()
++        self.connection.close.assert_called_once()
++
++    def test_restock_exception_closes_connection_without_retry(self):
++        error=Exception(&#x27;database refused&#x27;)
++        self.connection.cursor.return_value.execute.side_effect=error
++        with self.assertRaises(Exception) as caught:
++            self.service.restock(2,7,12)
++        self.assertIs(caught.exception,error)
++        self.service._connect.assert_called_once_with()
++        self.connection.commit.assert_not_called()
++        self.connection.close.assert_called_once()
++
++    def test_brand_uses_admin_connection_and_student_save_contract(self):
++        function=Mock(return_value=6)
++        module=SimpleNamespace(ADD_BRAND_READY=True,add_brand=function)
++        with patch(&#x27;service.importlib.import_module&#x27;,return_value=module):
++            self.assertEqual(self.service.add_brand({&#x27;name&#x27;:&#x27;House&#x27;,&#x27;country_id&#x27;:3}),6)
++        self.service._connect.assert_called_once_with(self.admin)
++        function.assert_called_once_with(self.connection,name=&#x27;House&#x27;,country_id=3)
++        self.connection.commit.assert_not_called()
++        self.connection.rollback.assert_not_called()
++        self.connection.close.assert_called_once()
++
++    def test_pending_brand_function_and_missing_admin_do_not_connect(self):
++        for ready in (False,True):
++            service=Service({&#x27;user&#x27;:&#x27;scent_app&#x27;})
++            service._connect=Mock()
++            module=SimpleNamespace(ADD_BRAND_READY=ready)
++            with patch(&#x27;service.importlib.import_module&#x27;,return_value=module):
++                with self.assertRaises(NotImplementedError):
++                    service.add_brand({})
++            service._connect.assert_not_called()
++
++    def test_brand_error_and_invalid_return_close_connection(self):
++        error=Exception(&#x27;refused&#x27;);error.errno=1142
++        function=Mock(side_effect=error)
++        module=SimpleNamespace(ADD_BRAND_READY=True,add_brand=function)
++        with patch(&#x27;service.importlib.import_module&#x27;,return_value=module):
++            with self.assertRaises(Exception) as caught:
++                self.service.add_brand({})
++            self.assertIs(caught.exception,error)
++            function.side_effect=None
++            for value in (None,True,0,-1,&#x27;6&#x27;):
++                function.return_value=value
++                with self.assertRaises(RuntimeError):
++                    self.service.add_brand({})
++        self.assertEqual(self.connection.close.call_count,6)
++        self.connection.commit.assert_not_called()
++        self.connection.rollback.assert_not_called()
++
+ 
+ if __name__ == &#x27;__main__&#x27;:
+     unittest.main()
+</pre></details><h3>Validation and practical limits</h3><p>51 tests passed using service/connection doubles, Python compilation passed, and JavaScript syntax passed. Live MySQL and browser visual verification remain local; Chromium could not launch here. No new SQL file or grant was created. Existing student code was compared byte-for-byte against the previous saved ZIP.</p></section><section id="final-fragrance-tuple"><p class="kicker">FINAL USER CORRECTION</p><h2>Fragrance parameter order corrected</h2><p>The latest user-supplied execute tuple now passes name, strength, size, price, and brand, matching the five placeholder positions. No AI-authored parameter-binding correction was substituted.</p><pre class="diff">--- previous/supplied_catalog_script.txt
++++ latest/supplied_catalog_script.txt
+@@ -88,7 +88,7 @@
+     cursor = mysql_conn.cursor(dictionary=True)
+     sql = &quot;&quot;&quot;
+ INSERT INTO Fragrance (Fragrance_Name, Strength, Size, Price, Brand_ID) Values (%s, %s, %s, %s, (SELECT Brand_ID From Brand WHERE Name = %s));&quot;&quot;&quot;
+-    cursor.execute(sql, (name, strength, size, brand, price))
++    cursor.execute(sql, (name, strength, size, price, brand))
+     cursor.close()
+ 
+ 
+</pre><p>The missing argument in the default get_brand_id() call, the integer-ID versus brand-name mismatch, saving the insert, and returning the new ID remain unresolved. Both insertion readiness flags stay false. Brand-function defects are unchanged.</p><p>Changed files: the saved supplied script, its intermediate snapshot, catalogue review (Markdown and HTML), source verification, and this cumulative report. Runtime modules, templates, JavaScript, preview, and SQL files were compared byte-for-byte with the preceding ZIP and are unchanged. The previous 51-test result still describes the unchanged runtime; no additional runtime tests were needed for this source-record/documentation update.</p></section><section id="fragrance-connected"><p class="kicker">LATEST COMPLETE USER SUBMISSION</p><h2>Add Fragrance is connected and enabled</h2><p>The user now supplies a direct Brand_ID INSERT with the correct execute tuple, a commit, a generated ID, cursor cleanup, and a returned ID. The adapted function is connected for existing brands. Restock remains connected; Add Brand remains unavailable pending its separate corrections.</p><div class="table-wrap"><table><thead><tr><th>File / change</th><th>Reason and scope</th></tr></thead><tbody><tr><td>student_code/fragrances.py</td><td>Replaces the scaffold with the supplied insert_fragrance function. Enables ADD_FRAGRANCE_READY. Adds an explicit connection argument and required form arguments; changes mysql_conn to connection in the body. Every other body statement is preserved.</td></tr><tr><td>service.py</td><td>Maps fragrance_name to name and brand_id to brand, preserving the five supplied database values. Uses the existing trusted customer/admin profile. Adds no SQL, commit, rollback, or retry.</td></tr><tr><td>app.py</td><td>Validates five supported fields; rejects nonempty old optional fields. Foreign-key messages now refer only to the house. A lost-connection message asks users to verify whether the row was saved before another attempt.</td></tr><tr><td>static/app.js</td><td>Removes optional perfumer/notes controls because the supplied SQL does not save them. Existing success ID and catalogue refresh behavior is retained.</td></tr><tr><td>Tests</td><td>Updates the five-field mapping checks and adds actual HTTP/service/student-function integration through connection doubles, including failed commit and exact customer refusal. Adds an AST check of the supplied function body.</td></tr><tr><td>SQL and other student files</td><td>All SQL files, the catalogue SELECT statements, and all other student modules are unchanged. Brand/country defects are documented rather than rewritten.</td></tr></tbody></table></div><p class="callout">Current status supersedes earlier pending-fragrance notes in this historical report. Start with python app.py --staff --fragrance-accounts. Add Brand still needs the team's corrected bindings, country-ID input, and returned ID.</p><h3>Exact adaptation of the supplied function</h3><pre class="diff">--- user-supplied/insert_fragrance
++++ web-adapted/insert_fragrance
+@@ -1,9 +1,9 @@
+-def insert_fragrance(name=get_fragrance_name(), strength=get_fragrance_strength(), size=get_fragrance_size(), brand=get_brand(), price=get_price()):
+-    cursor = mysql_conn.cursor(dictionary=True)
++def insert_fragrance(connection, name, strength, size, brand, price):
++    cursor = connection.cursor(dictionary=True)
+     sql = &quot;&quot;&quot;
+ INSERT INTO Fragrance (Fragrance_Name, Strength, Size, Price, Brand_ID) Values (%s, %s, %s, %s, %s);&quot;&quot;&quot;
+     cursor.execute(sql, (name, strength, size, price, brand))
+-    mysql_conn.commit()
++    connection.commit()
+     fragrance_id = cursor.lastrowid # FROM AI, USED CHATGPT. NEEDED FOR WEBPAGE
+     cursor.close()
+     return fragrance_id
+</pre><p>The source comparison verifies exact SQL and execute expressions and the full body after renaming only the connection variable. The user's AI disclosure comment on cursor.lastrowid is preserved. Terminal helpers, embedded credentials, and import-time prompts are excluded from the runtime module; the full source is retained in docs/supplied_catalog_script.txt.</p><h3>Complete functional diff from the preceding download</h3><details><summary>student_code/fragrances.py</summary><pre class="diff">--- before/student_code/fragrances.py
++++ after/student_code/fragrances.py
+@@ -1,22 +1,18 @@
+-&quot;&quot;&quot;Interface scaffold only. The team must write the graded database implementation.
++&quot;&quot;&quot;User-supplied fragrance INSERT adapted for web inputs and a passed connection.
+ 
+-Read docs/ADD_FRAGRANCE_TEAM_GUIDE.md for the input/output contract.
+-No INSERT, SQL parameter binding, commit, rollback, or grants are provided here.
++SQL, execute values, commit, lastrowid, cursor close, and return are retained.
++The original terminal script is preserved in docs/supplied_catalog_script.txt.
+ &quot;&quot;&quot;
+ 
+-ADD_FRAGRANCE_READY = False
++ADD_FRAGRANCE_READY = True
+ 
+ 
+-def add_fragrance(connection, fragrance_name, strength, size, price, brand_id,
+-                  perfumer_id=None, notes=None):
+-    &quot;&quot;&quot;Return the new positive integer Fragrance_ID after successfully saving.
+-
+-    The caller supplies a connection already authenticated as the appropriate
+-    MySQL account. Do not create a different connection or select an account
+-    here. Preserve the original MySQL exception on failure so the web layer
+-    can distinguish permission refusal from invalid data.
+-
+-    Set ADD_FRAGRANCE_READY to True after implementing and testing this function,
+-    then restart the Python web server.
+-    &quot;&quot;&quot;
+-    raise NotImplementedError(&#x27;The team has not implemented fragrance insertion yet.&#x27;)
++def insert_fragrance(connection, name, strength, size, brand, price):
++    cursor = connection.cursor(dictionary=True)
++    sql = &quot;&quot;&quot;
++INSERT INTO Fragrance (Fragrance_Name, Strength, Size, Price, Brand_ID) Values (%s, %s, %s, %s, %s);&quot;&quot;&quot;
++    cursor.execute(sql, (name, strength, size, price, brand))
++    connection.commit()
++    fragrance_id = cursor.lastrowid # FROM AI, USED CHATGPT. NEEDED FOR WEBPAGE
++    cursor.close()
++    return fragrance_id
+</pre></details><details><summary>service.py</summary><pre class="diff">--- before/service.py
++++ after/service.py
+@@ -145,7 +145,10 @@
+             raise NotImplementedError(&#x27;Fragrance database accounts have not been configured.&#x27;)
+         connection = self._connect(profile)
+         try:
+-            fragrance_id = module.add_fragrance(connection, **values)
++            fragrance_id = module.insert_fragrance(
++                connection, name=values[&#x27;fragrance_name&#x27;], strength=values[&#x27;strength&#x27;],
++                size=values[&#x27;size&#x27;], brand=values[&#x27;brand_id&#x27;], price=values[&#x27;price&#x27;],
++            )
+             if isinstance(fragrance_id, bool) or not isinstance(fragrance_id, int) or fragrance_id &lt;= 0:
+                 raise RuntimeError(&#x27;The student function must return the saved Fragrance_ID.&#x27;)
+             return fragrance_id
+</pre></details><details><summary>app.py</summary><pre class="diff">--- before/app.py
++++ after/app.py
+@@ -47,22 +47,18 @@
+ 
+ 
+ def fragrance_values(data):
+-    &quot;&quot;&quot;Form validation only. The student implementation must bind its own SQL values.&quot;&quot;&quot;
++    &quot;&quot;&quot;Validate the five fields supported by the supplied fragrance INSERT.&quot;&quot;&quot;
+     price = str(data.get(&#x27;price&#x27;, &#x27;&#x27;))
+     if not re.fullmatch(r&#x27;[0-9]{1,8}(?:\.[0-9]{1,2})?&#x27;, price):
+         raise Problem(&#x27;Enter a price from 0 to 99999999.99, with at most two decimal places.&#x27;)
+-    notes = data.get(&#x27;notes&#x27;)
+-    if notes is not None and (not isinstance(notes, str) or len(notes) &gt; 255):
+-        raise Problem(&#x27;Notes must contain no more than 255 characters.&#x27;)
+-    perfumer = data.get(&#x27;perfumer_id&#x27;)
++    if any(data.get(key) not in (None, &#x27;&#x27;) for key in (&#x27;perfumer_id&#x27;, &#x27;notes&#x27;)):
++        raise Problem(&#x27;Perfumer and catalogue notes cannot be saved by this form. Reload and use the five supported fields.&#x27;)
+     return {
+         &#x27;fragrance_name&#x27;: text_value(data, &#x27;fragrance_name&#x27;, 100),
+         &#x27;strength&#x27;: text_value(data, &#x27;strength&#x27;, 45),
+         &#x27;size&#x27;: positive_id(data, &#x27;size&#x27;),
+         &#x27;price&#x27;: Decimal(price),
+         &#x27;brand_id&#x27;: positive_id(data, &#x27;brand_id&#x27;),
+-        &#x27;perfumer_id&#x27;: None if perfumer in (None, &#x27;&#x27;) else positive_id(data, &#x27;perfumer_id&#x27;),
+-        &#x27;notes&#x27;: (notes.strip() or None) if notes is not None else None,
+     }
+ 
+ 
+@@ -154,11 +150,14 @@
+                     message = &#x27;That fragrance, strength, and bottle size already exist for this house.&#x27;
+                     status = 409
+                 elif adding and errno == 1452:
+-                    message = &#x27;Choose an existing house and a valid perfumer ID, or leave the perfumer blank.&#x27;
++                    message = &#x27;Choose an existing house for this fragrance.&#x27;
+                     status = 422
+                 elif adding and errno in (1048, 1264, 1366, 1406, 3819):
+                     message = &#x27;One or more fragrance values do not meet the database requirements.&#x27;
+                     status = 422
++                elif adding and errno in (2006, 2013):
++                    message = &#x27;The database connection was lost. Check whether the fragrance was saved before trying again.&#x27;
++                    status = 503
+                 elif adding_brand and errno == 1062:
+                     message = &#x27;A brand with that name already exists.&#x27;
+                     status = 409
+</pre></details><details><summary>static/app.js</summary><pre class="diff">--- before/static/app.js
++++ after/static/app.js
+@@ -209,7 +209,7 @@
+   }
+   function addFragrancePanel() {
+     const panel=$(&#x27;#add-fragrance-panel&#x27;);
+-    panel.innerHTML=`&lt;div class=&quot;feature-heading&quot;&gt;&lt;p class=&quot;eyebrow&quot;&gt;GROW THE COLLECTION&lt;/p&gt;&lt;h3&gt;Add a fragrance.&lt;/h3&gt;&lt;p&gt;Enter an existing house and the details of one fragrance variant.&lt;/p&gt;&lt;/div&gt;&lt;p class=&quot;feature-note&quot; id=&quot;fragrance-session-note&quot;&gt;${state.staff?&#x27;You are signed in to the team desk.&#x27;:&#x27;Browsing with customer access. Team members can sign in through the team desk.&#x27;}&lt;/p&gt;&lt;form id=&quot;add-fragrance-form&quot; class=&quot;feature-form&quot;&gt;&lt;div class=&quot;form-row&quot;&gt;&lt;label class=&quot;field&quot;&gt;FRAGRANCE NAME&lt;input name=&quot;fragrance_name&quot; maxlength=&quot;100&quot; required&gt;&lt;/label&gt;&lt;label class=&quot;field&quot;&gt;HOUSE&lt;select name=&quot;brand_id&quot; required&gt;&lt;option value=&quot;&quot;&gt;Choose a house&lt;/option&gt;${state.brands.map(b=&gt;`&lt;option value=&quot;${b.id}&quot;&gt;${esc(b.name)}&lt;/option&gt;`).join(&#x27;&#x27;)}&lt;/select&gt;&lt;/label&gt;&lt;/div&gt;&lt;div class=&quot;form-row&quot;&gt;&lt;label class=&quot;field&quot;&gt;STRENGTH&lt;input name=&quot;strength&quot; maxlength=&quot;45&quot; placeholder=&quot;Eau de Parfum&quot; required&gt;&lt;/label&gt;&lt;label class=&quot;field&quot;&gt;BOTTLE SIZE (ML)&lt;input name=&quot;size&quot; type=&quot;number&quot; min=&quot;1&quot; max=&quot;2147483647&quot; step=&quot;1&quot; required&gt;&lt;/label&gt;&lt;/div&gt;&lt;div class=&quot;form-row&quot;&gt;&lt;label class=&quot;field&quot;&gt;PRICE (USD)&lt;input name=&quot;price&quot; type=&quot;number&quot; min=&quot;0&quot; max=&quot;99999999.99&quot; step=&quot;0.01&quot; required&gt;&lt;/label&gt;&lt;label class=&quot;field&quot;&gt;PERFUMER ID (OPTIONAL)&lt;input name=&quot;perfumer_id&quot; type=&quot;number&quot; min=&quot;1&quot; max=&quot;2147483647&quot; step=&quot;1&quot; placeholder=&quot;Leave blank if unknown&quot;&gt;&lt;/label&gt;&lt;/div&gt;&lt;label class=&quot;field&quot;&gt;CATALOGUE NOTES (OPTIONAL)&lt;textarea name=&quot;notes&quot; maxlength=&quot;255&quot; rows=&quot;3&quot; placeholder=&quot;Additional information about this bottle&quot;&gt;&lt;/textarea&gt;&lt;/label&gt;&lt;p class=&quot;feature-note&quot;&gt;Catalogue notes are descriptive text. Scent notes, ingredients, and store stock are managed separately.&lt;/p&gt;&lt;button class=&quot;pill&quot; type=&quot;submit&quot;&gt;ADD FRAGRANCE →&lt;/button&gt;&lt;/form&gt;&lt;div class=&quot;panel-result result&quot; role=&quot;status&quot; hidden&gt;&lt;/div&gt;${state.preview?&#x27;&lt;p class=&quot;feature-note&quot;&gt;Preview only. No fragrance will be saved here.&lt;/p&gt;&#x27;:&#x27;&#x27;}`;
++    panel.innerHTML=`&lt;div class=&quot;feature-heading&quot;&gt;&lt;p class=&quot;eyebrow&quot;&gt;GROW THE COLLECTION&lt;/p&gt;&lt;h3&gt;Add a fragrance.&lt;/h3&gt;&lt;p&gt;Enter an existing house and the details of one fragrance variant.&lt;/p&gt;&lt;/div&gt;&lt;p class=&quot;feature-note&quot; id=&quot;fragrance-session-note&quot;&gt;${state.staff?&#x27;You are signed in to the team desk.&#x27;:&#x27;Browsing with customer access. Team members can sign in through the team desk.&#x27;}&lt;/p&gt;&lt;form id=&quot;add-fragrance-form&quot; class=&quot;feature-form&quot;&gt;&lt;div class=&quot;form-row&quot;&gt;&lt;label class=&quot;field&quot;&gt;FRAGRANCE NAME&lt;input name=&quot;fragrance_name&quot; maxlength=&quot;100&quot; required&gt;&lt;/label&gt;&lt;label class=&quot;field&quot;&gt;HOUSE&lt;select name=&quot;brand_id&quot; required&gt;&lt;option value=&quot;&quot;&gt;Choose a house&lt;/option&gt;${state.brands.map(b=&gt;`&lt;option value=&quot;${b.id}&quot;&gt;${esc(b.name)}&lt;/option&gt;`).join(&#x27;&#x27;)}&lt;/select&gt;&lt;/label&gt;&lt;/div&gt;&lt;div class=&quot;form-row&quot;&gt;&lt;label class=&quot;field&quot;&gt;STRENGTH&lt;input name=&quot;strength&quot; maxlength=&quot;45&quot; placeholder=&quot;Eau de Parfum&quot; required&gt;&lt;/label&gt;&lt;label class=&quot;field&quot;&gt;BOTTLE SIZE (ML)&lt;input name=&quot;size&quot; type=&quot;number&quot; min=&quot;1&quot; max=&quot;2147483647&quot; step=&quot;1&quot; required&gt;&lt;/label&gt;&lt;/div&gt;&lt;label class=&quot;field&quot;&gt;PRICE (USD)&lt;input name=&quot;price&quot; type=&quot;number&quot; min=&quot;0&quot; max=&quot;99999999.99&quot; step=&quot;0.01&quot; required&gt;&lt;/label&gt;&lt;p class=&quot;feature-note&quot;&gt;Adding a fragrance does not add bottles to a store. Store stock is managed separately.&lt;/p&gt;&lt;button class=&quot;pill&quot; type=&quot;submit&quot;&gt;ADD FRAGRANCE →&lt;/button&gt;&lt;/form&gt;&lt;div class=&quot;panel-result result&quot; role=&quot;status&quot; hidden&gt;&lt;/div&gt;${state.preview?&#x27;&lt;p class=&quot;feature-note&quot;&gt;Preview only. No fragrance will be saved here.&lt;/p&gt;&#x27;:&#x27;&#x27;}`;
+     $(&#x27;#add-fragrance-form&#x27;).addEventListener(&#x27;submit&#x27;,async e=&gt;{
+       e.preventDefault();const button=$(&#x27;button[type=submit]&#x27;,e.target);button.disabled=true;let saved=false;
+       try{const r=await api(&#x27;/api/fragrances&#x27;,Object.fromEntries(new FormData(e.target)));saved=true;panelMessage(panel,`${r.message} Catalogue ID: ${r.fragrance_id}.`);e.target.reset();
+</pre></details><details><summary>tests/test_service.py</summary><pre class="diff">--- before/tests/test_service.py
++++ after/tests/test_service.py
+@@ -1,5 +1,6 @@
+ &quot;&quot;&quot;Connection selection tests. These do not implement or execute SQL.&quot;&quot;&quot;
+ import unittest
++from decimal import Decimal
+ from types import SimpleNamespace
+ from unittest.mock import Mock, patch
+ 
+@@ -13,25 +14,28 @@
+         self.service = Service({&#x27;user&#x27;:&#x27;scent_app&#x27;}, customer_config=self.customer, admin_config=self.admin)
+         self.connection = Mock()
+         self.service._connect = Mock(return_value=self.connection)
++        self.fragrance_values = {&#x27;fragrance_name&#x27;:&quot;L&#x27;Example&quot;, &#x27;strength&#x27;:&#x27;Eau de Parfum&#x27;,
++                                 &#x27;size&#x27;:50, &#x27;brand_id&#x27;:3, &#x27;price&#x27;:Decimal(&#x27;125.50&#x27;)}
+ 
+     def test_accounts_selected_from_server_role(self):
+         for staff, profile in [(False,self.customer),(True,self.admin)]:
+             with self.subTest(staff=staff):
+                 function = Mock(return_value=209)
+-                module = SimpleNamespace(ADD_FRAGRANCE_READY=True, add_fragrance=function)
++                module = SimpleNamespace(ADD_FRAGRANCE_READY=True, insert_fragrance=function)
+                 with patch(&#x27;service.importlib.import_module&#x27;, return_value=module):
+-                    self.assertEqual(self.service.add_fragrance({&#x27;fragrance_name&#x27;:&#x27;Example&#x27;}, is_staff=staff), 209)
++                    self.assertEqual(self.service.add_fragrance(self.fragrance_values, is_staff=staff), 209)
+                 self.service._connect.assert_called_with(profile)
+-                function.assert_called_once_with(self.connection, fragrance_name=&#x27;Example&#x27;)
++                function.assert_called_once_with(self.connection, name=&quot;L&#x27;Example&quot;, strength=&#x27;Eau de Parfum&#x27;,
++                                                 size=50, brand=3, price=Decimal(&#x27;125.50&#x27;))
+                 self.connection.close.assert_called()
+ 
+     def test_student_database_exception_reaches_http_layer_unchanged(self):
+         error = Exception(&#x27;database error&#x27;)
+         error.errno = 1142
+-        module = SimpleNamespace(ADD_FRAGRANCE_READY=True, add_fragrance=Mock(side_effect=error))
++        module = SimpleNamespace(ADD_FRAGRANCE_READY=True, insert_fragrance=Mock(side_effect=error))
+         with patch(&#x27;service.importlib.import_module&#x27;, return_value=module):
+             with self.assertRaises(Exception) as caught:
+-                self.service.add_fragrance({}, is_staff=False)
++                self.service.add_fragrance(self.fragrance_values, is_staff=False)
+         self.assertIs(caught.exception, error)
+         self.connection.close.assert_called_once()
+         self.connection.commit.assert_not_called()
+@@ -69,10 +73,10 @@
+         self.service._call.assert_called_with(&#x27;reports&#x27;,&#x27;top_seller&#x27;)
+ 
+     def test_incomplete_student_result_is_not_accepted_as_success(self):
+-        module = SimpleNamespace(ADD_FRAGRANCE_READY=True, add_fragrance=Mock(return_value=None))
++        module = SimpleNamespace(ADD_FRAGRANCE_READY=True, insert_fragrance=Mock(return_value=None))
+         with patch(&#x27;service.importlib.import_module&#x27;, return_value=module):
+             with self.assertRaises(RuntimeError):
+-                self.service.add_fragrance({}, is_staff=True)
++                self.service.add_fragrance(self.fragrance_values, is_staff=True)
+         self.connection.close.assert_called_once()
+ 
+     def test_restock_runs_supplied_function_and_closes_base_connection(self):
+</pre></details><details><summary>tests/test_web.py</summary><pre class="diff">--- before/tests/test_web.py
++++ after/tests/test_web.py
+@@ -218,8 +218,7 @@
+         self.assertEqual(values[&#x27;price&#x27;], Decimal(&#x27;125.50&#x27;))
+         self.assertEqual(values[&#x27;size&#x27;], 50)
+         self.assertEqual(values[&#x27;brand_id&#x27;], 1)
+-        self.assertIsNone(values[&#x27;perfumer_id&#x27;])
+-        self.assertIsNone(values[&#x27;notes&#x27;])
++        self.assertEqual(set(values), {&#x27;fragrance_name&#x27;,&#x27;strength&#x27;,&#x27;size&#x27;,&#x27;price&#x27;,&#x27;brand_id&#x27;})
+ 
+     def test_logout_uses_customer_access_for_fragrance_submission(self):
+         self.login()
+@@ -243,7 +242,7 @@
+         self.assertNotEqual(data[&#x27;error&#x27;], ADD_FRAGRANCE_REFUSAL)
+ 
+     def test_fragrance_duplicate_and_invalid_reference_are_not_permission_errors(self):
+-        for errno, status, message in [(1062,409,&#x27;already exist&#x27;),(1452,422,&#x27;valid perfumer&#x27;)]:
++        for errno, status, message in [(1062,409,&#x27;already exist&#x27;),(1452,422,&#x27;existing house&#x27;)]:
+             with self.subTest(errno=errno):
+                 exc = Exception(&#x27;PRIVATE&#x27;)
+                 exc.errno = errno
+@@ -265,6 +264,14 @@
+     def test_fragrance_submission_requires_csrf(self):
+         self.assertEqual(self.call(&#x27;/api/fragrances&#x27;, self.fragrance_form(), csrf=False)[0], 403)
+         self.assertEqual(self.service.calls, [])
++
++    def test_unsupported_fragrance_fields_are_not_silently_discarded(self):
++        self.login()
++        for field, value in [(&#x27;perfumer_id&#x27;,&#x27;3&#x27;), (&#x27;notes&#x27;,&#x27;A description&#x27;)]:
++            code, data = self.call(&#x27;/api/fragrances&#x27;, self.fragrance_form(**{field:value}))
++            self.assertEqual(code,400)
++            self.assertIn(&#x27;cannot be saved&#x27;,data[&#x27;error&#x27;])
++        self.assertEqual(self.service.calls,[])
+ 
+     def test_preview_new_features_do_not_use_database_or_claim_success(self):
+         self.service.preview = True
+</pre></details><details><summary>tests/test_fragrance_insert.py</summary><pre class="diff">--- before/tests/test_fragrance_insert.py
++++ after/tests/test_fragrance_insert.py
+@@ -0,0 +1,117 @@
++&quot;&quot;&quot;Real web/service/student-function chain with database connection doubles.&quot;&quot;&quot;
++import ast
++from pathlib import Path
++import threading
++import unittest
++from unittest.mock import Mock
++from http.cookiejar import CookieJar
++from urllib.request import build_opener, HTTPCookieProcessor
++
++from app import ADD_FRAGRANCE_REFUSAL, make_server
++from service import Service
++import test_web as web_helpers
++
++
++class DatabaseFailure(Exception):
++    def __init__(self, errno):
++        self.errno = errno
++        super().__init__(&#x27;PRIVATE DATABASE DETAIL&#x27;)
++
++
++class FragranceFlowTests(unittest.TestCase):
++    # Reuse request helpers without inheriting unrelated tests.
++    call = web_helpers.WebTests.call
++    login = web_helpers.WebTests.login
++    fragrance_form = web_helpers.WebTests.fragrance_form
++
++    def setUp(self):
++        self.admin = {&#x27;user&#x27;:&#x27;admin&#x27;}
++        self.customer = {&#x27;user&#x27;:&#x27;customer&#x27;}
++        self.service = Service({&#x27;user&#x27;:&#x27;scent_app&#x27;}, customer_config=self.customer, admin_config=self.admin)
++        self.connection = Mock()
++        self.cursor = self.connection.cursor.return_value
++        self.cursor.lastrowid = 209
++        self.service._connect = Mock(return_value=self.connection)
++        self.server = make_server(self.service, 0, &#x27;test-team-password&#x27;)
++        self.thread = threading.Thread(target=self.server.serve_forever, kwargs={&#x27;poll_interval&#x27;:.02}, daemon=True)
++        self.thread.start()
++        self.url = &#x27;http://127.0.0.1:&#x27; + str(self.server.server_port)
++        self.client = build_opener(HTTPCookieProcessor(CookieJar()))
++        self.csrf = self.call(&#x27;/api/status&#x27;)[1][&#x27;csrf&#x27;]
++
++    def tearDown(self):
++        self.server.shutdown()
++        self.server.server_close()
++        self.thread.join()
++
++    def test_admin_insert_commits_once_and_returns_generated_id(self):
++        self.login()
++        code,data=self.call(&#x27;/api/fragrances&#x27;,self.fragrance_form())
++        self.assertEqual((code,data[&#x27;fragrance_id&#x27;]),(201,209))
++        self.service._connect.assert_called_once_with(self.admin)
++        self.connection.cursor.assert_called_once_with(dictionary=True)
++        from decimal import Decimal
++        self.assertEqual(self.cursor.execute.call_args.args[1],
++                         (&#x27;Team Example&#x27;,&#x27;Eau de Parfum&#x27;,50,Decimal(&#x27;125.50&#x27;),1))
++        self.connection.commit.assert_called_once()
++        self.cursor.close.assert_called_once()
++        self.connection.close.assert_called_once()
++
++    def test_customer_mysql_refusal_uses_exact_message_without_admin_retry(self):
++        self.cursor.execute.side_effect=DatabaseFailure(1142)
++        code,data=self.call(&#x27;/api/fragrances&#x27;,self.fragrance_form(role=&#x27;admin&#x27;,is_staff=True))
++        self.assertEqual((code,data[&#x27;error&#x27;]),(403,ADD_FRAGRANCE_REFUSAL))
++        self.service._connect.assert_called_once_with(self.customer)
++        self.connection.commit.assert_not_called()
++        self.connection.close.assert_called_once()
++
++    def test_commit_failure_does_not_report_saved_id_or_retry(self):
++        self.login()
++        self.connection.commit.side_effect=DatabaseFailure(2013)
++        code,data=self.call(&#x27;/api/fragrances&#x27;,self.fragrance_form())
++        self.assertEqual(code,503)
++        self.assertNotIn(&#x27;fragrance_id&#x27;,data)
++        self.assertNotIn(&#x27;PRIVATE&#x27;,data[&#x27;error&#x27;])
++        self.assertIn(&#x27;Check whether the fragrance was saved&#x27;,data[&#x27;error&#x27;])
++        self.service._connect.assert_called_once_with(self.admin)
++        self.cursor.execute.assert_called_once()
++        self.connection.commit.assert_called_once()
++        self.connection.close.assert_called_once()
++
++    def test_duplicate_and_foreign_key_failure_do_not_commit(self):
++        self.login()
++        for errno,status in [(1062,409),(1452,422)]:
++            with self.subTest(errno=errno):
++                self.connection.reset_mock()
++                self.cursor.execute.side_effect=DatabaseFailure(errno)
++                code,data=self.call(&#x27;/api/fragrances&#x27;,self.fragrance_form())
++                self.assertEqual(code,status)
++                self.assertNotIn(&#x27;fragrance_id&#x27;,data)
++                self.connection.commit.assert_not_called()
++                self.connection.close.assert_called_once()
++
++
++class FragranceSourceTests(unittest.TestCase):
++    def test_supplied_function_body_only_changes_connection_name(self):
++        root=Path(__file__).resolve().parents[1]
++        source=ast.parse((root/&#x27;docs/supplied_catalog_script.txt&#x27;).read_text())
++        adapted=ast.parse((root/&#x27;student_code/fragrances.py&#x27;).read_text())
++        original=next(n for n in source.body if isinstance(n,ast.FunctionDef) and n.name==&#x27;insert_fragrance&#x27;)
++        actual=next(n for n in adapted.body if isinstance(n,ast.FunctionDef) and n.name==&#x27;insert_fragrance&#x27;)
++
++        class ConnectionName(ast.NodeTransformer):
++            def visit_Name(self,node):
++                if node.id==&#x27;mysql_conn&#x27;:
++                    node.id=&#x27;connection&#x27;
++                return node
++
++        original=ConnectionName().visit(original)
++        expected=ast.dump(ast.Module(body=original.body,type_ignores=[]),include_attributes=False)
++        observed=ast.dump(ast.Module(body=actual.body,type_ignores=[]),include_attributes=False)
++        self.assertEqual(observed,expected)
++        self.assertEqual(actual.args.defaults,[])
++        self.assertEqual([a.arg for a in actual.args.args],[&#x27;connection&#x27;,&#x27;name&#x27;,&#x27;strength&#x27;,&#x27;size&#x27;,&#x27;brand&#x27;,&#x27;price&#x27;])
++
++
++if __name__ == &#x27;__main__&#x27;:
++    unittest.main()
+</pre></details><h3>Verification</h3><p>57 backend tests passed with service/connection doubles. Python compilation and JavaScript syntax checks passed. No live MySQL or browser visual success is claimed. The real permission demonstration must be run on the team server using effective customer/admin grants. All existing other student modules and SQL files were compared byte-for-byte with the preceding ZIP.</p><h3>Remaining original-script issues</h3><p>Brand values are still reversed, get_country returns a name instead of Country_ID, and insert_brand returns None even though it now commits. Country creation has separate SQL/binding/save/return problems. The original terminal script also evaluates inputs in defaults and does not explicitly call insert_fragrance before closing. The web adaptation fixes the invocation and input handling for fragrances without importing these helpers. See Catalog_Script_Review.html for the full current review.</p></section><section id="brand-connected"><p class="kicker">NOVEMBER 14, 2026 · LATEST BRAND FUNCTION</p><h2>Add Brand is connected and enabled</h2><p>The user supplied corrected country-ID binding, a commit, and a returned Brand_ID. Add Brand now calls that function on the configured admin connection after staff authentication. The existing country dropdown already provides a numeric ID, so the supplied get_country_id helper is preserved in the source record without adding a new runtime lookup.</p><div class="table-wrap"><table><thead><tr><th>File</th><th>Change and justification</th></tr></thead><tbody><tr><td>student_code/brands.py</td><td>Replaces the scaffold with insert_brand(connection, country_id, name). The body changes only mysql_conn to connection. SQL, tuple, commit, lastrowid, close, and return remain unchanged. ADD_BRAND_READY is True.</td></tr><tr><td>service.py</td><td>Calls insert_brand instead of the old scaffold function. The same name and country_id fields are passed on the existing admin connection. No new SQL, parameter binding, transaction code, or retry is added.</td></tr><tr><td>app.py</td><td>Gives a distinct missing-table message and a connection-loss message for brand insertion. Existing validation, staff checks, CSRF, and success response remain.</td></tr><tr><td>Tests</td><td>Updates mocked function naming and adds seven tests for actual brand insertion, staff access, database errors, failed commit, profile configuration, brand-to-fragrance ID flow, and exact source preservation.</td></tr><tr><td>Existing UI</td><td>No frontend change was needed. Add Brand already displays its returned ID and refreshes the catalogue/house choices. Add Fragrance uses the selected brand ID.</td></tr><tr><td>Database files</td><td>Other student modules, including fragrance and Restock, are byte-identical to the preceding download. All SQL files and catalogue SELECTs are unchanged.</td></tr></tbody></table></div><p class="callout">All three requested features are now connected. The supplied query spells the table BRAND; the supplied schema uses Brand. The exact SQL is preserved for attribution. On a case-sensitive server, the team must match the identifier to the existing table. The app does not rename tables or change MySQL settings.</p><h3>Exact adaptation of the latest supplied brand function</h3><pre class="diff">--- user-supplied/insert_brand
++++ web-adapted/insert_brand
+@@ -1,9 +1,9 @@
+-def insert_brand(country_id=get_country_id(get_country()), name=get_brand_name()):
+-    cursor = mysql_conn.cursor(dictionary=True)
++def insert_brand(connection, country_id, name):
++    cursor = connection.cursor(dictionary=True)
+     sql = &quot;&quot;&quot;
+ INSERT INTO BRAND (Name, Country_ID) Values (%s, %s);&quot;&quot;&quot;
+     cursor.execute(sql, (name, country_id))
+-    mysql_conn.commit()
++    connection.commit()
+     brand_id = cursor.lastrowid
+     cursor.close()
+     return brand_id
+</pre><h3>Complete functional diff from the preceding download</h3><details><summary>student_code/brands.py</summary><pre class="diff">--- before/student_code/brands.py
++++ after/student_code/brands.py
+@@ -1,20 +1,18 @@
+-&quot;&quot;&quot;Web interface for the team-owned brand insertion implementation.
++&quot;&quot;&quot;User-supplied brand INSERT adapted to explicit web inputs and a connection.
+ 
+-The supplied terminal script needs corrections before it can save a brand.
+-Read docs/CATALOG_SCRIPT_REVIEW.md. No INSERT, SQL binding, or transaction
+-implementation has been supplied by AI in this module.
++The SQL, parameter tuple, commit, lastrowid, close, and return are preserved.
++The website passes an existing Country_ID directly from its country dropdown.
+ &quot;&quot;&quot;
+ 
+-ADD_BRAND_READY = False
++ADD_BRAND_READY = True
+ 
+ 
+-def add_brand(connection, name, country_id):
+-    &quot;&quot;&quot;Return the saved positive integer Brand_ID using the supplied connection.
+-
+-    name is a nonempty string of at most 60 characters.
+-    country_id is a positive integer selected from the existing countries.
+-    The team must implement SQL, parameter binding, saving, and cleanup here,
+-    and propagate original MySQL exceptions. Do not prompt, connect, or change
+-    database accounts inside this function. Enable the flag after testing.
+-    &quot;&quot;&quot;
+-    raise NotImplementedError(&#x27;The team has not completed brand insertion yet.&#x27;)
++def insert_brand(connection, country_id, name):
++    cursor = connection.cursor(dictionary=True)
++    sql = &quot;&quot;&quot;
++INSERT INTO BRAND (Name, Country_ID) Values (%s, %s);&quot;&quot;&quot;
++    cursor.execute(sql, (name, country_id))
++    connection.commit()
++    brand_id = cursor.lastrowid
++    cursor.close()
++    return brand_id
+</pre></details><details><summary>service.py</summary><pre class="diff">--- before/service.py
++++ after/service.py
+@@ -124,7 +124,7 @@
+             raise NotImplementedError(&#x27;Brand database account has not been configured.&#x27;)
+         connection = self._connect(self.admin_config)
+         try:
+-            brand_id = module.add_brand(connection, **values)
++            brand_id = module.insert_brand(connection, **values)
+             if isinstance(brand_id, bool) or not isinstance(brand_id, int) or brand_id &lt;= 0:
+                 raise RuntimeError(&#x27;The student function must return the saved Brand_ID.&#x27;)
+             return brand_id
+</pre></details><details><summary>app.py</summary><pre class="diff">--- before/app.py
++++ after/app.py
+@@ -167,6 +167,12 @@
+                 elif adding_brand and errno in (1048, 1264, 1366, 1406, 3819):
+                     message = &#x27;One or more brand values do not meet the database requirements.&#x27;
+                     status = 422
++                elif adding_brand and errno == 1146:
++                    message = &#x27;The brand table could not be found. Ask the team to check its database name and capitalization.&#x27;
++                    status = 503
++                elif adding_brand and errno in (2006, 2013):
++                    message = &#x27;The database connection was lost. Check whether the brand was saved before trying again.&#x27;
++                    status = 503
+                 elif restocking and errno in (1264, 1690, 3819):
+                     message = &#x27;The resulting bottle count exceeds the inventory limits. Check the current stock and quantity.&#x27;
+                     status = 422
+</pre></details><details><summary>tests/test_service.py</summary><pre class="diff">--- before/tests/test_service.py
++++ after/tests/test_service.py
+@@ -110,7 +110,7 @@
+ 
+     def test_brand_uses_admin_connection_and_student_save_contract(self):
+         function=Mock(return_value=6)
+-        module=SimpleNamespace(ADD_BRAND_READY=True,add_brand=function)
++        module=SimpleNamespace(ADD_BRAND_READY=True,insert_brand=function)
+         with patch(&#x27;service.importlib.import_module&#x27;,return_value=module):
+             self.assertEqual(self.service.add_brand({&#x27;name&#x27;:&#x27;House&#x27;,&#x27;country_id&#x27;:3}),6)
+         self.service._connect.assert_called_once_with(self.admin)
+@@ -132,7 +132,7 @@
+     def test_brand_error_and_invalid_return_close_connection(self):
+         error=Exception(&#x27;refused&#x27;);error.errno=1142
+         function=Mock(side_effect=error)
+-        module=SimpleNamespace(ADD_BRAND_READY=True,add_brand=function)
++        module=SimpleNamespace(ADD_BRAND_READY=True,insert_brand=function)
+         with patch(&#x27;service.importlib.import_module&#x27;,return_value=module):
+             with self.assertRaises(Exception) as caught:
+                 self.service.add_brand({})
+</pre></details><details><summary>tests/test_brand_insert.py</summary><pre class="diff">--- before/tests/test_brand_insert.py
++++ after/tests/test_brand_insert.py
+@@ -0,0 +1,111 @@
++&quot;&quot;&quot;Real brand route/service/student-function checks using database doubles.&quot;&quot;&quot;
++import ast
++from decimal import Decimal
++from pathlib import Path
++import unittest
++from unittest.mock import Mock
++
++import test_fragrance_insert as fragrance_helpers
++
++
++class BrandFlowTests(unittest.TestCase):
++    setUp = fragrance_helpers.FragranceFlowTests.setUp
++    tearDown = fragrance_helpers.FragranceFlowTests.tearDown
++    call = fragrance_helpers.FragranceFlowTests.call
++    login = fragrance_helpers.FragranceFlowTests.login
++    fragrance_form = fragrance_helpers.FragranceFlowTests.fragrance_form
++
++    def test_admin_brand_insert_saves_country_id_and_returns_id(self):
++        self.login()
++        self.cursor.lastrowid = 6
++        code,data = self.call(&#x27;/api/brands&#x27;, {&#x27;name&#x27;:&quot;L&#x27;Example&quot;,&#x27;country_id&#x27;:&#x27;3&#x27;})
++        self.assertEqual((code,data[&#x27;brand_id&#x27;]),(201,6))
++        self.service._connect.assert_called_once_with(self.admin)
++        self.connection.cursor.assert_called_once_with(dictionary=True)
++        self.assertEqual(self.cursor.execute.call_args.args[1],(&quot;L&#x27;Example&quot;,3))
++        self.connection.commit.assert_called_once()
++        self.cursor.close.assert_called_once()
++        self.connection.close.assert_called_once()
++
++    def test_customer_cannot_select_admin_or_insert_brand(self):
++        code,_ = self.call(&#x27;/api/brands&#x27;,{&#x27;name&#x27;:&#x27;New&#x27;,&#x27;country_id&#x27;:3,&#x27;role&#x27;:&#x27;admin&#x27;,&#x27;is_staff&#x27;:True})
++        self.assertEqual(code,403)
++        self.service._connect.assert_not_called()
++
++    def test_brand_database_errors_propagate_without_commit_or_retry(self):
++        self.login()
++        for errno,status,phrase in [(1062,409,&#x27;already exists&#x27;),(1452,422,&#x27;country&#x27;),
++                                   (1142,403,&#x27;MySQL refused&#x27;),(1146,503,&#x27;capitalization&#x27;)]:
++            with self.subTest(errno=errno):
++                self.service._connect.reset_mock()
++                self.connection.reset_mock()
++                self.cursor.execute.side_effect=fragrance_helpers.DatabaseFailure(errno)
++                code,data=self.call(&#x27;/api/brands&#x27;,{&#x27;name&#x27;:&#x27;New&#x27;,&#x27;country_id&#x27;:3})
++                self.assertEqual(code,status)
++                self.assertIn(phrase,data[&#x27;error&#x27;])
++                self.assertNotIn(&#x27;PRIVATE&#x27;,data[&#x27;error&#x27;])
++                self.assertNotIn(&#x27;brand_id&#x27;,data)
++                self.connection.commit.assert_not_called()
++                self.service._connect.assert_called_once_with(self.admin)
++                self.connection.close.assert_called_once()
++
++    def test_brand_failed_commit_never_reports_success_or_retries(self):
++        self.login()
++        self.connection.commit.side_effect=fragrance_helpers.DatabaseFailure(2013)
++        code,data=self.call(&#x27;/api/brands&#x27;,{&#x27;name&#x27;:&#x27;New&#x27;,&#x27;country_id&#x27;:3})
++        self.assertEqual(code,503)
++        self.assertNotIn(&#x27;brand_id&#x27;,data)
++        self.assertIn(&#x27;Check whether the brand was saved&#x27;,data[&#x27;error&#x27;])
++        self.cursor.execute.assert_called_once()
++        self.connection.commit.assert_called_once()
++        self.service._connect.assert_called_once_with(self.admin)
++        self.connection.close.assert_called_once()
++
++    def test_brand_then_fragrance_uses_returned_brand_id(self):
++        self.login()
++        brand_connection,fragrance_connection=Mock(),Mock()
++        brand_connection.cursor.return_value.lastrowid=6
++        fragrance_connection.cursor.return_value.lastrowid=209
++        self.service._connect.side_effect=[brand_connection,fragrance_connection]
++        code,brand=self.call(&#x27;/api/brands&#x27;,{&#x27;name&#x27;:&#x27;New house&#x27;,&#x27;country_id&#x27;:3})
++        self.assertEqual(code,201)
++        code,fragrance=self.call(&#x27;/api/fragrances&#x27;,self.fragrance_form(brand_id=brand[&#x27;brand_id&#x27;]))
++        self.assertEqual((code,fragrance[&#x27;fragrance_id&#x27;]),(201,209))
++        self.assertEqual(fragrance_connection.cursor.return_value.execute.call_args.args[1],
++                         (&#x27;Team Example&#x27;,&#x27;Eau de Parfum&#x27;,50,Decimal(&#x27;125.50&#x27;),6))
++        for connection in (brand_connection,fragrance_connection):
++            connection.commit.assert_called_once()
++            connection.close.assert_called_once()
++        self.assertTrue(all(call.args==(self.admin,) for call in self.service._connect.call_args_list))
++
++    def test_brand_missing_profiles_remains_unavailable_without_fallback(self):
++        self.login()
++        self.service.admin_config=None
++        code,data=self.call(&#x27;/api/brands&#x27;,{&#x27;name&#x27;:&#x27;New&#x27;,&#x27;country_id&#x27;:3})
++        self.assertEqual(code,501)
++        self.assertNotIn(&#x27;brand_id&#x27;,data)
++        self.service._connect.assert_not_called()
++
++
++class BrandSourceTests(unittest.TestCase):
++    def test_supplied_brand_body_only_renames_connection(self):
++        root=Path(__file__).resolve().parents[1]
++        source=ast.parse((root/&#x27;docs/supplied_catalog_script.txt&#x27;).read_text())
++        adapted=ast.parse((root/&#x27;student_code/brands.py&#x27;).read_text())
++        original=next(n for n in source.body if isinstance(n,ast.FunctionDef) and n.name==&#x27;insert_brand&#x27;)
++        actual=next(n for n in adapted.body if isinstance(n,ast.FunctionDef) and n.name==&#x27;insert_brand&#x27;)
++
++        class ConnectionName(ast.NodeTransformer):
++            def visit_Name(self,node):
++                if node.id==&#x27;mysql_conn&#x27;:node.id=&#x27;connection&#x27;
++                return node
++
++        original=ConnectionName().visit(original)
++        self.assertEqual(ast.dump(ast.Module(body=actual.body,type_ignores=[]),include_attributes=False),
++                         ast.dump(ast.Module(body=original.body,type_ignores=[]),include_attributes=False))
++        self.assertEqual(actual.args.defaults,[])
++        self.assertEqual([a.arg for a in actual.args.args],[&#x27;connection&#x27;,&#x27;country_id&#x27;,&#x27;name&#x27;])
++
++
++if __name__ == &#x27;__main__&#x27;:
++    unittest.main()
+</pre></details><h3>Verification and local demonstration</h3><p>64 backend tests passed using doubles. Tests exercise the real HTTP route, service, and supplied brand function together, including a subsequent fragrance INSERT using the returned Brand_ID. Source checks verify both insertion bodies after only renaming the connection variable. Python compilation passed. Existing frontend and preview bytes are unchanged. No live MySQL or successful browser visual test is claimed.</p><p>Run python app.py --staff --fragrance-accounts. Sign in, create a brand using an existing country, verify its saved row, then choose it in Add Fragrance. Creating new countries is outside these three actions; its original helper remains unfinished. Earlier pending-brand notes in this historical report are superseded by this section.</p><p>Reference: <a href="https://dev.mysql.com/doc/refman/8.4/en/identifier-case-sensitivity.html">MySQL identifier case sensitivity</a>.</p></section><footer>Prepared from the supplied source files and the delivered Sillage_Website.zip. Original adaptation details are preserved above; later addenda identify subsequent application changes.</footer></main></body></html>

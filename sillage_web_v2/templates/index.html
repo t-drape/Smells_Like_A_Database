@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Explore fragrances by house, note and ingredient. Sillage, a Smells Like a Database project.">
+  <title>SILLAGE — A study in scent</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#catalog">Skip to fragrance catalogue</a>
+<main>
+  <section class="hero" aria-label="Fragrance discovery">
+    <header class="site-header">
+      <nav aria-label="Main navigation"><button data-action="shop">SHOP</button><button data-action="browse-note">NOTES</button><button data-action="browse-house">HOUSES</button></nav>
+      <a href="/" class="wordmark" aria-label="Sillage home">SILLAGE</a>
+      <nav class="account-nav" aria-label="Your account"><button data-action="account">SIGN IN</button><button data-action="bag">BAG (<span id="bag-count">0</span>)</button></nav>
+    </header>
+    <div class="marquee" aria-hidden="true"><div><span>VETIVER ✦ FIG LEAF ✦ OAKMOSS ✦ CEDAR ✦ TEA ✦ GALBANUM ✦ BERGAMOT ✦ IRIS ✦ WET STONE ✦</span><span>VETIVER ✦ FIG LEAF ✦ OAKMOSS ✦ CEDAR ✦ TEA ✦ GALBANUM ✦ BERGAMOT ✦ IRIS ✦ WET STONE ✦</span></div></div>
+    <div class="hero-heading">
+      <p class="eyebrow" id="eyebrow">A STUDY IN SCENT</p>
+      <h1><button id="group-title" data-action="choose-group" aria-label="Choose a fragrance group">VETIVER</button></h1>
+      <div class="mode-tabs" role="group" aria-label="Explore by"><button data-mode="house" aria-pressed="false">HOUSE</button><button data-mode="note" aria-pressed="true">NOTE</button><button data-mode="ingredient" aria-pressed="false">INGREDIENT</button></div>
+    </div>
+    <div class="carousel" id="carousel" role="region" aria-label="Fragrance carousel" aria-roledescription="carousel">
+      <div class="big-word" id="big-word" aria-hidden="true">VETIVER</div><div class="glow" aria-hidden="true"></div>
+      <div class="cards" id="cards"></div><p id="carousel-message" class="carousel-message" role="status">Opening the collection…</p>
+    </div>
+    <div class="hero-bottom">
+      <div class="active-fragrance"><span class="eyebrow" id="active-house"></span><button id="active-name" data-action="active-detail" aria-label="View selected fragrance"></button><div class="note-tags" id="active-notes"></div></div>
+      <div class="carousel-controls"><div><button class="round" data-action="prev" aria-label="Previous fragrance">‹</button><span id="counter">00 / 00</span><button class="round" data-action="next" aria-label="Next fragrance">›</button></div><span class="hint">DRAG TO SPIN · HOVER TO PAUSE</span><button class="motion-toggle" data-action="motion" id="motion-toggle">PAUSE MOTION</button></div>
+      <div class="hero-cta"><button class="pill" id="explore" data-action="explore">EXPLORE VETIVER <span aria-hidden="true">→</span></button></div>
+    </div>
+    <div class="hero-footnote"><span>SMELLS LIKE A DATABASE</span><a href="#catalog">FIND YOUR NEXT NOTE <span aria-hidden="true">↓</span></a><span id="data-mode">CONNECTING</span></div>
+    <svg class="grain" aria-hidden="true"><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(#grain)"/></svg>
+  </section>
+  <section class="catalog-section" id="catalog" aria-labelledby="catalog-title">
+    <div class="section-heading"><div><p class="eyebrow">THE COLLECTION</p><h2 id="catalog-title">Follow your curiosity.</h2></div><button class="text-button" data-action="show-all">VIEW ALL FRAGRANCES ↗</button></div>
+    <div class="collection-tabs" role="tablist" aria-label="Collection features">
+      <button id="tab-collection" role="tab" aria-selected="true" aria-controls="collection-panel" data-tab="collection" tabindex="0">COLLECTION</button>
+      <button id="tab-stock" role="tab" aria-selected="false" aria-controls="stock-panel" data-tab="stock" tabindex="-1">FIND IN STORES</button>
+      <button id="tab-top-sellers" role="tab" aria-selected="false" aria-controls="top-sellers-panel" data-tab="top-sellers" tabindex="-1">TOP SELLERS</button>
+      <button id="tab-add-fragrance" role="tab" aria-selected="false" aria-controls="add-fragrance-panel" data-tab="add-fragrance" tabindex="-1">ADD FRAGRANCE</button>
+      <button id="tab-add-brand" role="tab" aria-selected="false" aria-controls="add-brand-panel" data-tab="add-brand" tabindex="-1">ADD BRAND</button>
+    </div>
+    <div id="collection-panel" role="tabpanel" aria-labelledby="tab-collection" tabindex="0">
+    <div class="catalog-tools">
+      <label class="field search-field">FIND A FRAGRANCE<input id="catalog-search" type="search" placeholder="Search names, houses or notes…" autocomplete="off"></label>
+      <label class="field">ORDER BY<select id="catalog-sort"><option value="name">Fragrance name</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select></label>
+      <button class="outline-button" data-action="note-search">SEARCH BY NOTE</button><button class="outline-button" data-action="natural">INGREDIENT REPORT</button>
+    </div>
+    <div class="catalog-caption"><p id="catalog-count" role="status"></p><button id="clear-filter" class="text-button" data-action="show-all" hidden>CLEAR GROUP FILTER ×</button></div>
+    <div class="product-grid" id="product-grid"></div><button class="outline-button load-more" id="load-more" data-action="load-more" hidden>SHOW MORE FRAGRANCES</button>
+    </div>
+    <div id="stock-panel" class="feature-panel" role="tabpanel" aria-labelledby="tab-stock" tabindex="0" hidden></div>
+    <div id="top-sellers-panel" class="feature-panel" role="tabpanel" aria-labelledby="tab-top-sellers" tabindex="0" hidden></div>
+    <div id="add-fragrance-panel" class="feature-panel" role="tabpanel" aria-labelledby="tab-add-fragrance" tabindex="0" hidden></div>
+    <div id="add-brand-panel" class="feature-panel" role="tabpanel" aria-labelledby="tab-add-brand" tabindex="0" hidden></div>
+  </section>
+</main>
+<footer class="site-footer"><a href="/" class="wordmark">SILLAGE</a><p>A study in scent. A project in connection.</p><button class="text-button" data-action="staff">TEAM DESK ↗</button></footer>
+<dialog id="modal" aria-labelledby="modal-title"><button class="close-modal" data-action="close-modal" aria-label="Close dialog">×</button><div id="modal-content"></div></dialog>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<noscript><p class="noscript">Please enable JavaScript to browse the interactive catalogue.</p></noscript>
+</body>
+</html>
