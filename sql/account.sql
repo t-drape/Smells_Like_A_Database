@@ -5,7 +5,7 @@
 -- Replace the placeholder with a password
 
 CREATE USER IF NOT EXISTS 'scent_app'@'localhost'
-IDENTIFIED BY 'REPLACE_WITH_YOUR_PASSWORD'; -- Right here
+IDENTIFIED BY 'scent_app_user_password'; -- Right here
 
 -- Allow searches and reports
 GRANT SELECT ON scent_db.*
