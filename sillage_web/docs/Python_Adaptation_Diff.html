@@ -1,0 +1,254 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Python adaptation diff and explanation</title><style>
+:root{font-family:Arial,Helvetica,sans-serif;color:#182522;background:#f2f4f1;line-height:1.6}*{box-sizing:border-box}body{margin:0}main{max-width:1100px;margin:auto;background:white;padding:54px 58px 70px}h1{font-size:36px;line-height:1.15;margin:0 0 16px;letter-spacing:-.035em}h2{font-size:28px;line-height:1.2;margin:4px 0 14px}h3{font-size:18px;margin:28px 0 10px}p,li{font-size:15px}li{margin:0 0 12px}ol,ul{padding-left:24px}.kicker{font-size:11px;font-weight:700;letter-spacing:.13em;color:#536a5b;margin:0 0 12px}.lead{font-size:18px;color:#344b40}.callout,.verification{padding:17px 20px;background:#edf3ed;border-left:4px solid #58715b}.note{font-size:13px;color:#53605a}.metrics{font-size:12px;color:#536a5b}nav{display:flex;flex-wrap:wrap;gap:12px;margin:25px 0}nav a,button{display:inline-block;border:1px solid #a0b4a2;border-radius:5px;padding:7px 13px;color:#24452d;text-decoration:none;background:white;font:inherit;font-size:13px}section{margin-top:52px;padding-top:22px;border-top:1px solid #ccd7cc}.table-wrap{overflow:auto;margin:20px 0}table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.5;text-align:left}th{background:#edf3ed;font-weight:700}th,td{border:1px solid #d7dfd7;padding:11px;vertical-align:top}code{font-family:Consolas,Menlo,monospace;font-size:.9em;overflow-wrap:anywhere}.diff{background:#f8faf7;border:1px solid #d7dfd7;padding:14px;font-family:Consolas,Menlo,monospace;font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:4}.diff span{display:inline}.added{color:#155c2b;background:#e0f3e5}.removed{color:#8b302e;background:#fce9e7}.hunk{color:#245a86;background:#e9f0fa}.file{font-weight:bold;color:#344b40}.hash{font-size:11px;word-break:break-all}footer{font-size:12px;color:#53605a;margin-top:40px}@media(max-width:700px){main{padding:26px 18px}h1{font-size:28px}.diff{font-size:11px}th,td{padding:8px}}@media print{:root{background:white}main{padding:0;max-width:none}nav,button{display:none}h2,h3{break-after:avoid}tr{break-inside:avoid}.diff{font-size:9px;line-height:1.45}section{break-before:page}.table-wrap{overflow:visible}th,td{padding:7px}p,li{font-size:11px}h1{font-size:26px}h2{font-size:21px}.lead{font-size:13px}@page{size:letter;margin:.65in}}
+</style></head><body><main><p class="kicker">DB_SYSTEMS · CS317 · CODE REVIEW RECORD</p><h1>Python adaptation diff and explanation</h1><p class="lead">The three command-line scripts were adapted into callable database modules for the website. The retained SQL strings, execute-call arguments, and query-function bodies were verified against the uploaded originals.</p><p>This report compares <code>searches(1).py</code>, <code>revenue(1).py</code>, and <code>discount(1).py</code> with the corresponding <code>student_code/</code> files inside the delivered <code>Sillage_Website.zip</code>. It describes AI-made changes rather than attributing those changes to the student team.</p><p class="callout"><strong>Precise scope:</strong> each of the five retained function bodies changes only <code>mysql_conn</code> to <code>connection</code> when creating its cursor. Function signatures, connection setup, default inputs, terminal output, import-time behavior, and one duplicate function also changed outside those bodies. These interface changes have observable effects, documented below.</p><p class="note">This report includes every unified-diff hunk with original and adapted line numbers. Only original <code>MYSQL_PASSWORD</code> literals are masked. Usernames and all other source text are retained in the diff; masking was applied to this report only, not to the uploaded source. The password masking means this is a review diff, not a patch to apply automatically. Pure blank-line changes are included.</p><nav><a href="#shared">Shared changes</a><a href="#searches">searches.py</a><a href="#revenue">revenue.py</a><a href="#discount">discount.py</a><a href="#verification">Verification</a><a href="#feature-additions">Feature additions</a><button onclick="window.print()">Print or save as PDF</button></nav>
+<section id="shared"><p class="kicker">CONTEXT FOR ALL THREE FILES</p><h2>What moved to the web application</h2><p>The original files mixed connection setup, database functions, terminal prompts, and immediate execution. The adapted files contain callable functions. The new web code supplies a connection and values, calls the function, and presents the result.</p>
+<div class="table-wrap"><table><thead><tr><th>Responsibility</th><th>Original</th><th>Adapted application</th></tr></thead><tbody><tr><td>MySQL connection and credentials</td><td>Hardcoded per-module credentials and a connection created when the script/import ran.</td><td><code>app.py</code> reads startup configuration; <code>Service._connect()</code> opens a connection for each operation. Passwords are obtained from the environment or a terminal prompt.</td></tr><tr><td>Effective database account</td><td>Searches used <code>customer</code>; revenue and discount used <code>admin</code>.</td><td>All three now use the single configured username, defaulting to the team-defined <code>scent_app</code>. The staff-page password is application authorization; it does not switch MySQL accounts. This is a permissions change in how the application connects, even though no GRANT statement was edited.</td></tr><tr><td>Connection lifetime</td><td>Each file owned a global connection and closed it at its bottom.</td><td><code>Service._call()</code> opens a connection, passes it to the function, and closes it in <code>finally</code>. It does not commit or roll back for these query functions.</td></tr><tr><td>Inputs</td><td>Terminal <code>input()</code> helpers and function-definition-time defaults.</td><td>Browser forms and HTTP validation provide explicit arguments. The existing SQL parameter tuples remain untouched.</td></tr><tr><td>Output</td><td>Helpers printed names, totals, or promotional text.</td><td>Returned dictionaries/lists flow through JSON to browser tables and currency formatting. Filtering/formatting differences are stated for each file.</td></tr><tr><td>Imports and comments</td><td>Connector/date imports supported removed setup/helper code.</td><td>Unused imports were removed. The same explanatory header comment was added to each adapted file. Blank lines were removed alongside the deleted sections.</td></tr><tr><td>Names</td><td>Uploaded filenames contained the download suffix <code>(1)</code>.</td><td>Adapted modules use the importable names <code>searches.py</code>, <code>revenue.py</code>, and <code>discount.py</code> inside <code>student_code/</code>.</td></tr></tbody></table></div><h3>Why the default arguments matter</h3><pre class="diff"># Original: get_note() runs when Python executes this definition.
+def get_fragrances_with_note(user_input=get_note()):
+
+# Adapted: the caller provides the connection and note for this request.
+def get_fragrances_with_note(connection, user_input):</pre><p>The same definition-time rule applied to <code>get_store()</code> and <code>get_discount_date()</code>. The original discount cutoff was captured once when the module loaded. The service now calculates <code>date.today() - timedelta(days=30)</code> when called without a cutoff, while the website form can supply a different date.</p><h3>Behavior beyond these three files</h3><ul><li>The ingredient query always returned all classifications, but the old print helper showed only clean fragrances. The new report shows all classifications.</li><li>The old revenue formatter attempted <code>float(TotalRevenue)</code>. An empty SQL SUM can be NULL, which would fail that conversion. The new website displays an empty total as $0.00 and reports that no matching purchases were found. The SQL itself is unchanged.</li><li>The removed discount print helper claimed the customer had not purchased since each returned date. The query does not establish that. The new report labels the actual older-purchase rows and sends no messages.</li></ul><p>These are presentation and orchestration changes. Saying “only the function signatures changed” would be incomplete. Saying “the retained SQL and parameterization were preserved” is supported by the comparison.</p></section><section id="searches"><p class="kicker">ADAPTED FILE</p><h2>searches.py</h2><p>Keep the two fragrance-query functions callable from website requests.</p><p class="metrics">5 added lines · 47 removed lines · whitespace included</p><div class="table-wrap"><table><thead><tr><th>Original interface</th><th>Adapted interface</th><th>Source line locations</th></tr></thead><tbody><tr><td><code>get_fragrances_with_natural_status()</code></td><td><code>get_fragrances_with_natural_status(connection)</code></td><td>Original 18–38; adapted 3–23</td></tr><tr><td><code>get_fragrances_with_note(user_input=get_note())</code></td><td><code>get_fragrances_with_note(connection, user_input)</code></td><td>Original 40–49; adapted 25–34</td></tr></tbody></table></div><h3>Complete change explanation</h3><ol><li><strong>Removed module-level connection setup.</strong> Removed the mysql.connector import, hardcoded customer username/password variables, and mysql.connector.connect(...) block. The web service now opens and supplies the connection. This module no longer chooses which MySQL user runs its queries.</li><li><strong>Removed get_note().</strong> The original helper prompted in the terminal. The website note-search form now supplies the note string. The HTTP layer validates that it is nonempty and at most 45 characters; the query still receives the existing user_input parameter.</li><li><strong>Changed get_fragrances_with_natural_status().</strong> Added a required connection argument and changed mysql_conn.cursor(dictionary=True) to connection.cursor(dictionary=True). No other statement in this function body changed.</li><li><strong>Changed get_fragrances_with_note(...).</strong> Changed user_input=get_note() to the required arguments connection, user_input. Python evaluates default argument expressions when a function is defined, so the original get_note() call could prompt during import. The adapted function receives an explicit note on each request.</li><li><strong>Removed print_fragrance_names(...).</strong> This helper printed the Fragrance_Name fields. The query still returns its original list of dictionaries; the browser now renders those names in a table.</li><li><strong>Removed print_natural_fragrances(...).</strong> The original helper printed only rows whose Natural_Status equaled Clean Fragrance. The website ingredient report now displays every row and its classification. This is a deliberate display change; the grouped query and its returned rows are unchanged.</li><li><strong>Removed startup execution and global close.</strong> Removed the two top-level calls that fetched and printed results, plus mysql_conn.close(). Importing this file now defines functions without prompting, querying, or printing. The new service closes each connection in a finally block.</li></ol><p class="verification"><strong>Preserved database work:</strong> Both retained SQL string values match the originals exactly. The execute(sql) call, execute(sql, (user_input,)) call, fetchall(), cursor.close(), and returned values are preserved.</p><h3>Full unified diff</h3><pre class="diff"><span class="file">--- original/searches(1).py</span>
+<span class="file">+++ adapted/student_code/searches.py</span>
+<span class="hunk">@@ -1,22 +1,7 @@</span>
+<span class="removed">-import mysql.connector</span>
+<span class="added">+# Student SQL and execute arguments preserved; connection is supplied by the web app.</span>
+<span class="context"> </span>
+<span class="removed">-</span>
+<span class="removed">-# Change these to your own MySQL login</span>
+<span class="removed">-MYSQL_USER = &quot;customer&quot;</span>
+<span class="removed">-MYSQL_PASSWORD = &quot;[REDACTED ORIGINAL PASSWORD]&quot;</span>
+<span class="removed">-</span>
+<span class="removed">-mysql_conn = mysql.connector.connect(</span>
+<span class="removed">-    host=&quot;localhost&quot;,</span>
+<span class="removed">-    user=MYSQL_USER,</span>
+<span class="removed">-    password=MYSQL_PASSWORD,</span>
+<span class="removed">-    database=&quot;scent_db&quot;</span>
+<span class="removed">-)</span>
+<span class="removed">-</span>
+<span class="removed">-def get_note():</span>
+<span class="removed">-    return str(input(&quot;Fragrance Note: &quot;))</span>
+<span class="removed">-</span>
+<span class="removed">-def get_fragrances_with_natural_status():</span>
+<span class="removed">-    cursor = mysql_conn.cursor(dictionary=True)</span>
+<span class="added">+def get_fragrances_with_natural_status(connection):</span>
+<span class="added">+    cursor = connection.cursor(dictionary=True)</span>
+<span class="context">     sql = &quot;&quot;&quot;</span>
+<span class="context"> SELECT Fragrance.Fragrance_Name, Brand.Name,</span>
+<span class="context"> CASE</span>
+<span class="hunk">@@ -37,8 +22,8 @@</span>
+<span class="context">     cursor.close()</span>
+<span class="context">     return fragrances</span>
+<span class="context"> </span>
+<span class="removed">-def get_fragrances_with_note(user_input=get_note()):</span>
+<span class="removed">-    cursor = mysql_conn.cursor(dictionary=True)</span>
+<span class="added">+def get_fragrances_with_note(connection, user_input):</span>
+<span class="added">+    cursor = connection.cursor(dictionary=True)</span>
+<span class="context">     sql = &quot;&quot;&quot;SELECT DISTINCT Fragrance.Fragrance_Name FROM Fragrance_Note</span>
+<span class="context"> INNER JOIN Fragrance_Has_Note ON Fragrance_Note.Note_ID = Fragrance_Has_Note.Note_ID</span>
+<span class="context"> INNER JOIN Fragrance ON Fragrance.Fragrance_ID = Fragrance_Has_Note.Fragrance_ID</span>
+<span class="hunk">@@ -47,30 +32,3 @@</span>
+<span class="context">     fragrances = cursor.fetchall()</span>
+<span class="context">     cursor.close()</span>
+<span class="context">     return fragrances</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-def print_fragrance_names(name_dictionary):</span>
+<span class="removed">-    print(&quot;Fragrances:&quot;)</span>
+<span class="removed">-    for row in name_dictionary:</span>
+<span class="removed">-        fragrance = row[&quot;Fragrance_Name&quot;]</span>
+<span class="removed">-        print(fragrance)</span>
+<span class="removed">-</span>
+<span class="removed">-def print_natural_fragrances(name_dictionary):</span>
+<span class="removed">-    print(&quot;Clean Fragrances:&quot;)</span>
+<span class="removed">-    for row in name_dictionary:</span>
+<span class="removed">-        fragrance = row[&quot;Fragrance_Name&quot;]</span>
+<span class="removed">-        brand = row[&quot;Name&quot;]</span>
+<span class="removed">-        natural_status = row[&quot;Natural_Status&quot;]</span>
+<span class="removed">-        if natural_status == &quot;Clean Fragrance&quot;:</span>
+<span class="removed">-            print(f&quot;&quot;&quot;</span>
+<span class="removed">-    Brand: {brand}</span>
+<span class="removed">-    Fragrance: {fragrance}</span>
+<span class="removed">-            &quot;&quot;&quot;)</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-print_fragrance_names(get_fragrances_with_note())</span>
+<span class="removed">-print_natural_fragrances(get_fragrances_with_natural_status())</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-mysql_conn.close()</span></pre></section><section id="revenue"><p class="kicker">ADAPTED FILE</p><h2>revenue.py</h2><p>Keep total-revenue and city-specific revenue queries reusable from staff web forms.</p><p class="metrics">5 added lines · 30 removed lines · whitespace included</p><div class="table-wrap"><table><thead><tr><th>Original interface</th><th>Adapted interface</th><th>Source line locations</th></tr></thead><tbody><tr><td><code>get_gross_revenue()</code></td><td><code>get_gross_revenue(connection)</code></td><td>Original 15–23; adapted 3–11</td></tr><tr><td><code>get_specific_revenue(user_input=get_store())</code></td><td><code>get_specific_revenue(connection, user_input)</code></td><td>Original 28–40; adapted 13–25</td></tr></tbody></table></div><h3>Complete change explanation</h3><ol><li><strong>Removed module-level connection setup.</strong> Removed the mysql.connector import, hardcoded admin credentials, and immediate connection. The server-supplied connection determines the effective MySQL account and privileges.</li><li><strong>Changed get_gross_revenue().</strong> Added connection as a required argument and replaced mysql_conn.cursor(dictionary=True) with connection.cursor(dictionary=True). Its SELECT/SUM/JOIN, execution, fetchone(), cursor.close(), and return are otherwise unchanged.</li><li><strong>Removed get_store().</strong> The terminal City prompt is replaced by the website store-city selection. The HTTP layer passes its city string explicitly to the service and then to the existing function.</li><li><strong>Changed get_specific_revenue(...).</strong> Replaced user_input=get_store() with connection, user_input. This removes a terminal prompt that previously ran when the function was defined, and permits a different city on each request. The query still uses the same scalar subquery and the exact same (user_input,) parameter tuple.</li><li><strong>Removed normalize_revenue_from_sql(...).</strong> This helper extracted TotalRevenue and converted it to float for terminal display. The query function now returns its original dictionary directly to the web adapter. The HTTP JSON serializer converts Decimal values to strings; browser code handles display formatting.</li><li><strong>Removed two top-level print calls.</strong> The original script ran and printed both reports immediately. Reports now run when the signed-in team-desk user submits a form. The browser formats the amount as USD currency instead of Python applying :.2f in a print statement.</li><li><strong>Removed mysql_conn.close().</strong> Connection ownership moved to the service, which closes it after the function completes, including when the function raises an exception. The retained function-local cursor.close() calls were not removed.</li></ol><p class="verification"><strong>Preserved database work:</strong> Both retained SQL strings and execute argument expressions are exact matches. The SUM still uses current Fragrance.Price, and the store report still requires the city subquery to return at most one Store_ID.</p><h3>Full unified diff</h3><pre class="diff"><span class="file">--- original/revenue(1).py</span>
+<span class="file">+++ adapted/student_code/revenue.py</span>
+<span class="hunk">@@ -1,19 +1,7 @@</span>
+<span class="removed">-import mysql.connector</span>
+<span class="added">+# Student SQL and execute arguments preserved; connection is supplied by the web app.</span>
+<span class="context"> </span>
+<span class="removed">-</span>
+<span class="removed">-# Change these to your own MySQL login</span>
+<span class="removed">-MYSQL_USER = &quot;admin&quot;</span>
+<span class="removed">-MYSQL_PASSWORD = &quot;[REDACTED ORIGINAL PASSWORD]&quot;</span>
+<span class="removed">-</span>
+<span class="removed">-mysql_conn = mysql.connector.connect(</span>
+<span class="removed">-    host=&quot;localhost&quot;,</span>
+<span class="removed">-    user=MYSQL_USER,</span>
+<span class="removed">-    password=MYSQL_PASSWORD,</span>
+<span class="removed">-    database=&quot;scent_db&quot;</span>
+<span class="removed">-)</span>
+<span class="removed">-</span>
+<span class="removed">-def get_gross_revenue():</span>
+<span class="removed">-    cursor = mysql_conn.cursor(dictionary=True)</span>
+<span class="added">+def get_gross_revenue(connection):</span>
+<span class="added">+    cursor = connection.cursor(dictionary=True)</span>
+<span class="context">     sql = &quot;&quot;&quot;SELECT SUM(Fragrance.Price) AS TotalRevenue</span>
+<span class="context">       From Purchase_Record Inner Join Fragrance ON</span>
+<span class="context">         Purchase_Record.Fragrance_ID = Fragrance.Fragrance_ID;&quot;&quot;&quot;</span>
+<span class="hunk">@@ -22,11 +10,8 @@</span>
+<span class="context">     cursor.close()</span>
+<span class="context">     return revenue</span>
+<span class="context"> </span>
+<span class="removed">-def get_store():</span>
+<span class="removed">-    return input(&quot;City: &quot;)</span>
+<span class="removed">-</span>
+<span class="removed">-def get_specific_revenue(user_input=get_store()):</span>
+<span class="removed">-    cursor = mysql_conn.cursor(dictionary=True)</span>
+<span class="added">+def get_specific_revenue(connection, user_input):</span>
+<span class="added">+    cursor = connection.cursor(dictionary=True)</span>
+<span class="context">     sql = &quot;&quot;&quot;SELECT SUM(Fragrance.Price) AS TotalRevenue</span>
+<span class="context">         From Purchase_Record Inner Join Fragrance ON</span>
+<span class="context">         Purchase_Record.Fragrance_ID = Fragrance.Fragrance_ID</span>
+<span class="hunk">@@ -38,13 +23,3 @@</span>
+<span class="context">     revenue = cursor.fetchone()</span>
+<span class="context">     cursor.close()</span>
+<span class="context">     return revenue</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-def normalize_revenue_from_sql(revenue_dictionary):</span>
+<span class="removed">-    total_revenue = revenue_dictionary[&quot;TotalRevenue&quot;]</span>
+<span class="removed">-    return float(total_revenue)</span>
+<span class="removed">-</span>
+<span class="removed">-print(f&quot;Gross Revenue: {normalize_revenue_from_sql(get_gross_revenue()):.2f}&quot;)</span>
+<span class="removed">-print(f&quot;Specific Revenue: {normalize_revenue_from_sql(get_specific_revenue()):.2f}&quot;)</span>
+<span class="removed">-</span>
+<span class="removed">-mysql_conn.close()</span></pre></section><section id="discount"><p class="kicker">ADAPTED FILE</p><h2>discount.py</h2><p>Expose the existing older-purchase query as a callable report with an explicit cutoff date.</p><p class="metrics">3 added lines · 51 removed lines · whitespace included</p><div class="table-wrap"><table><thead><tr><th>Original interface</th><th>Adapted interface</th><th>Source line locations</th></tr></thead><tbody><tr><td><code>get_users_with_discount(date_delta=get_discount_date())</code></td><td><code>get_users_with_discount(connection, date_delta)</code></td><td>Original 34–48; adapted 3–17</td></tr></tbody></table></div><h3>Complete change explanation</h3><ol><li><strong>Removed module imports and connection setup.</strong> Removed mysql.connector and the date/timedelta imports, hardcoded admin credentials, and mysql.connector.connect(...). The new service owns the connection and imports the date utilities it uses.</li><li><strong>Removed get_gross_revenue().</strong> The discount script contained a second gross-revenue function that its bottom-of-file workflow did not call. It was removed from this adapted module. The equivalent report remains available through revenue.py. This deletes a duplicate SQL-bearing function; it does not edit the SQL of any retained function.</li><li><strong>Removed get_discount_date().</strong> The same default rule, today minus 30 days, is now computed by Service.discounts(...) when no explicit cutoff is passed. The browser report normally supplies a date from its date field.</li><li><strong>Changed get_users_with_discount(...).</strong> Replaced date_delta=get_discount_date() with required arguments connection, date_delta, and switched cursor creation to the supplied connection. The SQL, execute(sql, (date_delta,)), fetchall(), cursor.close(), and return users remain unchanged.</li><li><strong>Removed normalize_users_with_discount_data(...).</strong> This helper printed a promotional message for each result row; it did not actually email anyone or generate a discount code. The website now displays matching purchase rows in a table. It does not claim that each purchase date is the customer&#x27;s latest purchase.</li><li><strong>Removed startup execution and global close.</strong> Removed the top-level query/formatter call and mysql_conn.close(). Importing this file no longer connects, runs a report, or prints messages. The service closes the per-operation connection.</li></ol><p class="verification"><strong>Preserved database work:</strong> The retained discount SQL and (date_delta,) parameter tuple match exactly. It still selects purchase rows older than the cutoff for fragrances currently priced above 200; it does not compute each customer&#x27;s most recent purchase.</p><h3>Full unified diff</h3><pre class="diff"><span class="file">--- original/discount(1).py</span>
+<span class="file">+++ adapted/student_code/discount.py</span>
+<span class="hunk">@@ -1,38 +1,7 @@</span>
+<span class="removed">-import mysql.connector</span>
+<span class="added">+# Student SQL and execute arguments preserved; connection is supplied by the web app.</span>
+<span class="context"> </span>
+<span class="removed">-from datetime import date, timedelta</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-# Change these to your own MySQL login</span>
+<span class="removed">-MYSQL_USER = &quot;admin&quot;</span>
+<span class="removed">-MYSQL_PASSWORD = &quot;[REDACTED ORIGINAL PASSWORD]&quot;</span>
+<span class="removed">-</span>
+<span class="removed">-mysql_conn = mysql.connector.connect(</span>
+<span class="removed">-    host=&quot;localhost&quot;,</span>
+<span class="removed">-    user=MYSQL_USER,</span>
+<span class="removed">-    password=MYSQL_PASSWORD,</span>
+<span class="removed">-    database=&quot;scent_db&quot;</span>
+<span class="removed">-)</span>
+<span class="removed">-</span>
+<span class="removed">-def get_gross_revenue():</span>
+<span class="removed">-    cursor = mysql_conn.cursor(dictionary=True)</span>
+<span class="removed">-    sql = &quot;&quot;&quot;SELECT SUM(Fragrance.Price) AS TotalRevenue</span>
+<span class="removed">-      From Purchase_Record Inner Join Fragrance ON</span>
+<span class="removed">-        Purchase_Record.Fragrance_ID = Fragrance.Fragrance_ID;&quot;&quot;&quot;</span>
+<span class="removed">-    cursor.execute(sql)</span>
+<span class="removed">-    revenue = cursor.fetchone()</span>
+<span class="removed">-    cursor.close()</span>
+<span class="removed">-    return revenue</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-def get_discount_date():</span>
+<span class="removed">-    today = date.today()</span>
+<span class="removed">-    discount_date = today - timedelta(days=30)</span>
+<span class="removed">-    return discount_date</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-def get_users_with_discount(date_delta=get_discount_date()):</span>
+<span class="removed">-    cursor = mysql_conn.cursor(dictionary=True)</span>
+<span class="added">+def get_users_with_discount(connection, date_delta):</span>
+<span class="added">+    cursor = connection.cursor(dictionary=True)</span>
+<span class="context">     sql = &quot;&quot;&quot;</span>
+<span class="context"> SELECT Concat(Person.First_Name, &#x27; &#x27;, Person.Last_Name) AS Name, Fragrance.Price, Purchase_Date</span>
+<span class="context"> From Purchase_Record</span>
+<span class="hunk">@@ -46,20 +15,3 @@</span>
+<span class="context">     users = cursor.fetchall()</span>
+<span class="context">     cursor.close()</span>
+<span class="context">     return users</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-def normalize_users_with_discount_data(data_dictionary):</span>
+<span class="removed">-    for row in data_dictionary:</span>
+<span class="removed">-        name = row[&quot;Name&quot;]</span>
+<span class="removed">-        date = row[&quot;Purchase_Date&quot;]</span>
+<span class="removed">-</span>
+<span class="removed">-        print(f&quot;&quot;&quot;</span>
+<span class="removed">-Hi {name}!</span>
+<span class="removed">-We like you. You haven&#x27;t purchased since {date}.</span>
+<span class="removed">-Here&#x27;s a discount code for you!</span>
+<span class="removed">-        &quot;&quot;&quot;)</span>
+<span class="removed">-</span>
+<span class="removed">-normalize_users_with_discount_data(get_users_with_discount())</span>
+<span class="removed">-</span>
+<span class="removed">-</span>
+<span class="removed">-mysql_conn.close()</span></pre></section><section id="verification"><p class="kicker">REPRODUCIBLE SOURCE CHECKS</p><h2>What was verified</h2><div class="table-wrap"><table><thead><tr><th>Module</th><th>Retained function</th><th>SQL string values</th><th>execute call expressions</th><th>Function body</th></tr></thead><tbody><tr><td>searches.py</td><td><code>get_fragrances_with_natural_status</code></td><td>Exact match</td><td>Exact match</td><td>Only connection variable changed</td></tr><tr><td>searches.py</td><td><code>get_fragrances_with_note</code></td><td>Exact match</td><td>Exact match</td><td>Only connection variable changed</td></tr><tr><td>revenue.py</td><td><code>get_gross_revenue</code></td><td>Exact match</td><td>Exact match</td><td>Only connection variable changed</td></tr><tr><td>revenue.py</td><td><code>get_specific_revenue</code></td><td>Exact match</td><td>Exact match</td><td>Only connection variable changed</td></tr><tr><td>discount.py</td><td><code>get_users_with_discount</code></td><td>Exact match</td><td>Exact match</td><td>Only connection variable changed</td></tr></tbody></table></div><p>The body check compares Python syntax trees after normalizing only the original <code>mysql_conn</code> name to <code>connection</code>. It ignores source location metadata, not executable statements. The SQL check compares the literal string values, including their whitespace. The execute check compares the complete existing call expressions, including the parameter tuples.</p><p>These are static source-preservation checks. They do not prove the SQL runs successfully against your live server, or that the new web permissions match the old account permissions.</p><p><code>customers.py</code> and <code>transactions.py</code> were separately verified as byte-for-byte copies of their uploaded originals. They are outside the adapted-file diffs. No transaction-body or SQL-grant changes are hidden in this report.</p><h3>Source file hashes</h3><p class="note">SHA-256 values below refer to the original unmasked source bytes and the exact adapted ZIP member. Report masking does not change these hashes.</p><div class="table-wrap"><table><thead><tr><th>Original filename</th><th>Original SHA-256</th><th>Adapted SHA-256</th></tr></thead><tbody><tr><td>searches(1).py</td><td><code class="hash">2e7eb75058b24750d23621d2079407cf647ac01625e4035622c51e4f4f967928</code></td><td><code class="hash">e9f669b2ffdd9c70de75fd60745a82204370c03d04ce95d1c922d5f83cbeeaf6</code></td></tr><tr><td>revenue(1).py</td><td><code class="hash">5a9fb57b81709215c5c07322f0f7b06a62bcb9b37e6a64d0ed20153a1935fe03</code></td><td><code class="hash">cb9043efb5fd4886a2755b37d84dda8d125cc38eb5501d13a78ca3e29ce677b6</code></td></tr><tr><td>discount(1).py</td><td><code class="hash">00551c1db945e569c40a6b4e80cbf4a25640c97a5e6d625a9ca1fa2dd081e735</code></td><td><code class="hash">37ba39e29bd6ac09b68851ca3fd02c3715f1fe53436cb9263fede5a9ba771bbc</code></td></tr></tbody></table></div><h3>Accurate explanation for a code review</h3><p>The team supplied the original database functions. AI adapted three scripts for a web interface by moving connection ownership to a service layer, passing form values explicitly, and removing command-line presentation and import-time execution. The retained SQL statements, SQL parameter tuples, fetching logic, and returned database values were preserved. The registration and purchase-transaction files were copied unchanged. The new web interface has the additional display and connection-account behavior documented above.</p><p>Review this attribution against your team’s actual work before using it in a submission. It describes this integration, not the authorship of any earlier project work.</p></section><section id="feature-additions"><p class="kicker">FEATURE ADDENDUM</p><h2>Stock location top sellers and Add Fragrance</h2><p>The original three adaptations documented above remain unchanged. This addition saves the two newly supplied query functions in reports.py, adds the corresponding website reports, and supplies the Add Fragrance interface without writing its graded database implementation.</p><div class="table-wrap"><table><thead><tr><th>File</th><th>Change and ownership</th></tr></thead><tbody><tr><td>student_code/reports.py</td><td>The user's stock_location and top_seller functions are copied unchanged. SQL strings and execute argument expressions were verified against the pasted source.</td></tr><tr><td>student_code/fragrances.py</td><td>AI-written interface scaffold only. ADD_FRAGRANCE_READY remains False. No INSERT, SQL binding, commit, rollback, or grant statements were written.</td></tr><tr><td>service.py</td><td>Calls the two supplied functions, provides existing Brand data to the form, and selects the customer/admin connection only for Add Fragrance.</td></tr><tr><td>app.py</td><td>Adds routes, validation, role-profile setup, and specific error messages. A verified staff session selects the admin profile; browser role fields are ignored.</td></tr><tr><td>HTML CSS and JavaScript</td><td>Adds four keyboard-accessible collection tabs, stock/sales tables, and the fragrance form.</td></tr><tr><td>SQL files</td><td>The existing setup/account files remain unchanged. The supplied customer/admin account scripts were copied unchanged into sql/ for reference.</td></tr></tbody></table></div><h3>Account behavior</h3><p>All existing features and the new stock/sales reports still use the base application account. Add Fragrance alone uses the optional customer or admin profile based on the server's staff session. Both visitors and staff may submit; only a MySQL permission exception from the customer insertion attempt produces the requested refusal message. No function/configuration/preview failure is presented as a real MySQL denial.</p><p class="callout">The Add Fragrance INSERT function must still be written by the team. The full field mapping, return/error contract, account setup, and live demo instructions are in docs/ADD_FRAGRANCE_TEAM_GUIDE.md inside the website ZIP. The separate UPDATE feature and individual customer authentication/history also remain team work.</p><h3>New supplied module copied unchanged</h3><pre class="diff">import mysql.connector
+
+
+def stock_location(connection, fragrance_name):
+    cursor = connection.cursor(dictionary=True)
+    sql = &quot;&quot;&quot;
+    SELECT Store.City, Store.Building, Store.Street, Store_Inventory.Num_Bottles
+    FROM Fragrance
+      JOIN Store_Inventory
+        ON Fragrance.Fragrance_ID = Store_Inventory.Fragrance_ID
+      JOIN Store
+        ON Store_Inventory.Store_ID = Store.Store_ID
+    WHERE Fragrance.Fragrance_Name = %s
+    AND Store_Inventory.Num_Bottles &gt; 0
+    ORDER BY Store_Inventory.Num_Bottles DESC;
+    &quot;&quot;&quot;
+    cursor.execute(sql, (fragrance_name,))
+    rows = cursor.fetchall()
+    cursor.close()
+    return rows
+
+
+def top_seller(connection):
+    cursor = connection.cursor(dictionary=True)
+    sql = &quot;&quot;&quot;
+    SELECT Fragrance.Fragrance_Name,
+           COUNT(*) AS Total_Purchases
+    FROM Purchase_Record
+      JOIN Fragrance
+        ON Purchase_Record.Fragrance_ID = Fragrance.Fragrance_ID
+    GROUP BY Fragrance.Fragrance_ID, Fragrance.Fragrance_Name
+    ORDER BY Total_Purchases DESC
+    LIMIT 5;
+    &quot;&quot;&quot;
+    cursor.execute(sql)
+    rows = cursor.fetchall()
+    cursor.close()
+    return rows
+</pre><h3>New interface scaffold</h3><pre class="diff">&quot;&quot;&quot;Interface scaffold only. The team must write the graded database implementation.
+
+Read docs/ADD_FRAGRANCE_TEAM_GUIDE.md for the input/output contract.
+No INSERT, SQL parameter binding, commit, rollback, or grants are provided here.
+&quot;&quot;&quot;
+
+ADD_FRAGRANCE_READY = False
+
+
+def add_fragrance(connection, fragrance_name, strength, size, price, brand_id,
+                  perfumer_id=None, notes=None):
+    &quot;&quot;&quot;Return the new positive integer Fragrance_ID after successfully saving.
+
+    The caller supplies a connection already authenticated as the appropriate
+    MySQL account. Do not create a different connection or select an account
+    here. Preserve the original MySQL exception on failure so the web layer
+    can distinguish permission refusal from invalid data.
+
+    Set ADD_FRAGRANCE_READY to True after implementing and testing this function,
+    then restart the Python web server.
+    &quot;&quot;&quot;
+    raise NotImplementedError(&#x27;The team has not implemented fragrance insertion yet.&#x27;)
+</pre><h3>Verification</h3><p>34 HTTP/service tests passed using service and connection doubles, including customer/admin profile selection, forged-role rejection, exact customer-refusal text, and differentiated data errors. Python compilation and JavaScript syntax checks passed. Live MySQL and browser visual checks remain pending; the workspace could not launch Chromium. Simulated exceptions do not satisfy the live database-refusal demonstration.</p></section><footer>Prepared from the supplied source files and the delivered Sillage_Website.zip. No application files were changed while producing this report.</footer></main></body></html>

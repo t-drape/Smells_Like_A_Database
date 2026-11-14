@@ -1,0 +1,11 @@
+{
+  "Fragrance": "SELECT * FROM Fragrance;",
+  "Brand": "SELECT * FROM Brand;",
+  "Country": "SELECT * FROM Country;",
+  "Store": "SELECT * FROM Store;",
+  "Store_Inventory": "SELECT * FROM Store_Inventory;",
+  "Fragrance_Note": "SELECT * FROM Fragrance_Note;",
+  "Fragrance_Has_Note": "SELECT * FROM Fragrance_Has_Note;",
+  "Fragrance_Ingredient": "SELECT * FROM Fragrance_Ingredient;",
+  "Fragrance_Has_Ingredient": "SELECT * FROM Fragrance_Has_Ingredient;"
+}

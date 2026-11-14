@@ -1,0 +1,39 @@
+{
+  "searches": {
+    "sql_literals_unchanged": 2,
+    "execute_calls_unchanged": 2,
+    "original_sha256": "2e7eb75058b24750d23621d2079407cf647ac01625e4035622c51e4f4f967928",
+    "adapted_sha256": "e9f669b2ffdd9c70de75fd60745a82204370c03d04ce95d1c922d5f83cbeeaf6"
+  },
+  "revenue": {
+    "sql_literals_unchanged": 2,
+    "execute_calls_unchanged": 2,
+    "original_sha256": "5a9fb57b81709215c5c07322f0f7b06a62bcb9b37e6a64d0ed20153a1935fe03",
+    "adapted_sha256": "cb9043efb5fd4886a2755b37d84dda8d125cc38eb5501d13a78ca3e29ce677b6"
+  },
+  "discount": {
+    "sql_literals_unchanged": 1,
+    "execute_calls_unchanged": 1,
+    "original_sha256": "00551c1db945e569c40a6b4e80cbf4a25640c97a5e6d625a9ca1fa2dd081e735",
+    "adapted_sha256": "37ba39e29bd6ac09b68851ca3fd02c3715f1fe53436cb9263fede5a9ba771bbc"
+  },
+  "customers": {
+    "sql_literals_unchanged": 2,
+    "execute_calls_unchanged": 2,
+    "original_sha256": "2738bcf50d498516f22cb3db0c4f7d425f5c256d01d6f88f5dfb65385287a2d8",
+    "adapted_sha256": "2738bcf50d498516f22cb3db0c4f7d425f5c256d01d6f88f5dfb65385287a2d8"
+  },
+  "transactions": {
+    "sql_literals_unchanged": 2,
+    "execute_calls_unchanged": 2,
+    "original_sha256": "56dd3fd1c4a26e31ed56d1d3a423747a54ab1408d48eed3bb45c7eaf2a4751b6",
+    "adapted_sha256": "56dd3fd1c4a26e31ed56d1d3a423747a54ab1408d48eed3bb45c7eaf2a4751b6"
+  },
+  "reports": {
+    "source": "User-pasted stock_location and top_seller module",
+    "sql_literals_unchanged": 2,
+    "execute_calls_unchanged": 2,
+    "saved_sha256": "c2ce72dd90fa16bc4372ff5f8a592f16fe42066591a84f6e2bf16e0867054d20",
+    "adaptations": "None; saved as reports.py"
+  }
+}
